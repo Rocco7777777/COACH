@@ -23,7 +23,8 @@
 
 <h2>Tko vidi tvoje podatke</h2>
 <ul>
-<li><b>Ti</b> i <b>trener tvog tima</b>. Sportaši drugih timova i drugi treneri ne vide tvoje podatke (to osigurava baza podataka pravilima pristupa po timu).</li>
+<li><b>Ti</b> i <b>trener tvog tima</b>. Drugi timovi i njihovi treneri ne vide tvoje podatke (to osigurava baza podataka pravilima pristupa po timu).</li>
+<li>Rezultate treninga (vremena, kilaže, kilometre i tempo) mogu vidjeti i članovi istog tima na ljestvicama. GPS rute, komentari, san, suplementi i upitnik ostaju vidljivi samo tebi i treneru.</li>
 <li>Trener može izvesti podatke svog tima u Excel datoteku i sam je podijeliti; za to odgovara trener.</li>
 </ul>
 
@@ -64,7 +65,7 @@
 </ul>
 <p>No contacts, photos, microphone, advertising IDs or app usage data. No ads, no analytics, no tracking, no third-party SDKs.</p>
 <h2>Location</h2><p>Used only to record a GPS run the athlete starts. While recording, a persistent notification (foreground service) keeps tracking working with the screen locked. Tracking stops when the run is stopped. No location is collected at any other time.</p>
-<h2>Who can see your data</h2><p>You and the coach of your team only, enforced by per-team access rules in the database. A coach can export their team's data to an Excel file and is responsible for any sharing of it.</p>
+<h2>Who can see your data</h2><p>You and the coach of your team, enforced by per-team access rules in the database. Members of the same team may also see training results (times, weights, kilometres and pace) on leaderboards; GPS routes, comments, sleep, supplements and questionnaire answers stay visible only to you and your coach. A coach can export their team's data to an Excel file and is responsible for any sharing of it.</p>
 <h2>Processors</h2>
 <ul><li><b>Supabase Inc.</b>: database hosting and authentication.</li>
 <li><b>OpenStreetMap Foundation</b>: map tiles are downloaded during a GPS run; OSM sees the device's IP address and the requested map area, not your name or results.</li>
