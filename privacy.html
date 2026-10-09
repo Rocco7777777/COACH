@@ -12,32 +12,31 @@
 <tr><th>Podatak</th><th>Zašto</th></tr>
 <tr><td>Ime, e-mail adresa, lozinka (pohranjena samo kao sažetak/hash), uloga (trener ili sportaš), tim</td><td>Prijava i povezivanje sportaša s trenerom</td></tr>
 <tr><td>Treninzi koje trener sastavlja i rezultati koje sportaš upiše: vremena dionica, serije u teretani (kg, ponavljanja, RPE), stari rekordi upisani ručno</td><td>Glavna funkcija aplikacije: vođenje treninga i praćenje napretka</td></tr>
-<tr><td>GPS trčanja: precizna lokacija i ruta, udaljenost, vrijeme i tempo</td><td>Samo dok sportaš sam pokrene snimanje trčanja</td></tr>
+<tr><td>Duža trčanja koja sportaš sam upiše: udaljenost i vrijeme (tempo se računa iz njih)</td><td>Praćenje kilometraže i napretka</td></tr>
 <tr><td>Dnevnik: sati sna, suplementi (proteini, kreatin, vitamini) i odgovori na jutarnji upitnik o stanju (npr. san, umor, bol)</td><td>Da trener može prilagoditi trening</td></tr>
 </table>
 <p>Podaci o snu i jutarnjem upitniku mogu biti podaci o zdravlju. Njih upisuješ dobrovoljno i u bilo kojem trenutku ih možeš izostaviti ili obrisati.</p>
 <p>Aplikacija <b>ne</b> prikuplja kontakte, fotografije, mikrofon, identifikatore oglašavanja ni podatke o drugim aplikacijama. Nema oglasa, nema analitike, nema praćenja i nema SDK-ova trećih strana.</p>
 
 <h2>Lokacija</h2>
-<p>Lokacija se koristi samo za snimanje GPS trčanja koje sportaš sam pokrene. Dok snimanje traje, aplikacija prikazuje stalnu obavijest (foreground service) kako bi snimanje radilo i dok je zaslon zaključan. Kad sportaš zaustavi trčanje, praćenje lokacije prestaje. Lokacija se ne prikuplja u pozadini u bilo koje drugo vrijeme.</p>
+<p>Aplikacija ne traži dopuštenje za lokaciju i ne prikuplja lokaciju uređaja.</p>
 
 <h2>Tko vidi tvoje podatke</h2>
 <ul>
 <li><b>Ti</b> i <b>trener tvog tima</b>. Drugi timovi i njihovi treneri ne vide tvoje podatke (to osigurava baza podataka pravilima pristupa po timu).</li>
-<li>Rezultate treninga (vremena, kilaže, kilometre i tempo) mogu vidjeti i članovi istog tima na ljestvicama. GPS rute, komentari, san, suplementi i upitnik ostaju vidljivi samo tebi i treneru.</li>
+<li>Rezultate treninga (vremena, kilaže, kilometre i tempo) mogu vidjeti i članovi istog tima na ljestvicama. Komentari, san, suplementi i upitnik ostaju vidljivi samo tebi i treneru.</li>
 <li>Trener može izvesti podatke svog tima u Excel datoteku i sam je podijeliti; za to odgovara trener.</li>
 </ul>
 
 <h2>S kim dijelimo podatke (izvršitelji obrade)</h2>
 <ul>
 <li><b>Supabase Inc.</b>: pohrana baze podataka i prijava korisnika (<a href="https://supabase.com/privacy">pravila Supabasea</a>).</li>
-<li><b>OpenStreetMap Foundation</b>: tijekom GPS trčanja aplikacija preuzima dijelove karte s poslužitelja OpenStreetMap. Oni pritom vide IP adresu uređaja i koji dio karte se traži, ali ne i tvoje ime ni rezultate (<a href="https://osmfoundation.org/wiki/Privacy_Policy">pravila OSMF-a</a>).</li>
 <li><b>Google</b>: distribucija aplikacije putem Google Playa, prema Googleovim pravilima.</li>
 </ul>
 <p>Podatke ne prodajemo i ne koristimo ih za oglašavanje. Svi prijenosi idu šifrirano (HTTPS).</p>
 
 <h2>Pravna osnova</h2>
-<p>Izvršenje usluge koju si zatražio otvaranjem računa (čl. 6. st. 1. b GDPR-a), a za podatke o zdravlju i lokaciji tvoja izričita privola (čl. 9. st. 2. a i čl. 6. st. 1. a), koju možeš povući u bilo kojem trenutku brisanjem tih podataka ili računa.</p>
+<p>Izvršenje usluge koju si zatražio otvaranjem računa (čl. 6. st. 1. b GDPR-a), a za podatke o zdravlju tvoja izričita privola (čl. 9. st. 2. a), koju možeš povući u bilo kojem trenutku brisanjem tih podataka ili računa.</p>
 
 <h2>Koliko dugo čuvamo podatke</h2>
 <p>Dok imaš račun. Brisanjem računa u aplikaciji (Postavke → Obriši račun) podaci se brišu odmah; zahtjevom putem e-maila u roku od 30 dana. Lokalna kopija na telefonu briše se odjavom ili deinstalacijom aplikacije.</p>
@@ -60,18 +59,17 @@
 <ul>
 <li><b>Account:</b> name, email, password (stored only as a hash), role (coach or athlete), team.</li>
 <li><b>Training:</b> workouts created by the coach and results entered by the athlete: split times, gym sets (kg, reps, RPE), manually entered past records.</li>
-<li><b>GPS runs:</b> precise location and route, distance, time and pace, only while the athlete records a run.</li>
+<li><b>Longer runs:</b> distance and time typed in by the athlete (pace is calculated from them).</li>
 <li><b>Daily log:</b> hours of sleep, supplements (protein, creatine, vitamins) and answers to the coach's morning wellness questionnaire. This may be health data; it is entered voluntarily.</li>
 </ul>
 <p>No contacts, photos, microphone, advertising IDs or app usage data. No ads, no analytics, no tracking, no third-party SDKs.</p>
-<h2>Location</h2><p>Used only to record a GPS run the athlete starts. While recording, a persistent notification (foreground service) keeps tracking working with the screen locked. Tracking stops when the run is stopped. No location is collected at any other time.</p>
-<h2>Who can see your data</h2><p>You and the coach of your team, enforced by per-team access rules in the database. Members of the same team may also see training results (times, weights, kilometres and pace) on leaderboards; GPS routes, comments, sleep, supplements and questionnaire answers stay visible only to you and your coach. A coach can export their team's data to an Excel file and is responsible for any sharing of it.</p>
+<h2>Location</h2><p>The app does not request location permission and does not collect the device location.</p>
+<h2>Who can see your data</h2><p>You and the coach of your team, enforced by per-team access rules in the database. Members of the same team may also see training results (times, weights, kilometres and pace) on leaderboards; comments, sleep, supplements and questionnaire answers stay visible only to you and your coach. A coach can export their team's data to an Excel file and is responsible for any sharing of it.</p>
 <h2>Processors</h2>
 <ul><li><b>Supabase Inc.</b>: database hosting and authentication.</li>
-<li><b>OpenStreetMap Foundation</b>: map tiles are downloaded during a GPS run; OSM sees the device's IP address and the requested map area, not your name or results.</li>
 <li><b>Google</b>: app distribution via Google Play.</li></ul>
 <p>We do not sell data or use it for advertising. All transfers are encrypted (HTTPS).</p>
-<h2>Legal basis</h2><p>Performance of the service you requested (GDPR Art. 6(1)(b)); explicit consent for health and location data (Art. 9(2)(a), Art. 6(1)(a)), withdrawable at any time by deleting that data or your account.</p>
+<h2>Legal basis</h2><p>Performance of the service you requested (GDPR Art. 6(1)(b)); explicit consent for health data (Art. 9(2)(a)), withdrawable at any time by deleting that data or your account.</p>
 <h2>Retention</h2><p>As long as you have an account. Deleting the account in the app (Settings → Obriši račun) deletes data immediately; an email request is handled within 30 days. The local copy on the phone is removed by logging out or uninstalling.</p>
 <h2>Your rights</h2><p>Access, rectification, erasure, restriction, portability and objection: write to <span class="ph">[KONTAKT E-MAIL]</span>. You may also complain to the Croatian data protection authority (<a href="https://azop.hr">AZOP</a>). Account deletion: <a href="delete-account.html#en">instructions</a>.</p>
 <h2>Children</h2><p>Not intended for children under 16 without parental consent.</p>
