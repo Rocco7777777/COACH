@@ -49,7 +49,6 @@ struct AthleteHome: View {
                 }
             }
         }
-        .tint(.white)
         .sheet(isPresented: $wellness) {
             WellnessView(date: Fmt.today()) { wellness = false }
         }

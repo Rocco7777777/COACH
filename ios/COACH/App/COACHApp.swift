@@ -45,6 +45,7 @@ struct COACHApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
     init() {
+        UINavigationBar.appearance().tintColor = .white
         if let shot = Shot.name {
             if shot == "login" {
                 Store.shared.wipe()

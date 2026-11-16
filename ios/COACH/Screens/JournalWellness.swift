@@ -26,7 +26,7 @@ struct JournalTab: View {
                         StepRow(name: "Kreatin", unit: "grama", value: d.double("creatine"), step: 1, lo: 0, hi: 30, suffix: " g") { save("creatine", .num($0)) }
                         Divider().padding(.vertical, 10)
                         Text("Vitamini i ostalo").font(C.bold(14)).foregroundColor(C.carbon)
-                        let on = Set(d["vitamins"].list.map { $0.string })
+                        let on = Set(d["vitamins"].list.map { $0.asString })
                         FlowLayout(spacing: 6) {
                             ForEach(Model.vitamins, id: \.self) { v in
                                 Chip(title: on.contains(v) ? "✓ " + v : v, on: on.contains(v)) {
@@ -74,7 +74,7 @@ struct JournalTab: View {
         var lines: [String] = []
         for k in w.keys.sorted() {
             let v = w[k]
-            let txt = v.isArray ? v.list.map { $0.string }.joined(separator: ", ") : v.string
+            let txt = v.isArray ? v.list.map { $0.asString }.joined(separator: ", ") : v.asString
             if txt.isEmpty { continue }
             let label = d["wellnessLabels"].string(k, k)
             lines.append(label + ": " + txt)
@@ -243,8 +243,8 @@ struct WellnessView: View {
                 }
                 .padding(.top, 12)
             case "multi":
-                let opts = q["options"].list.map { $0.string }
-                let on = Set(answers[id].list.map { $0.string })
+                let opts = q["options"].list.map { $0.asString }
+                let on = Set(answers[id].list.map { $0.asString })
                 FlowLayout(spacing: 6) {
                     ForEach(opts, id: \.self) { o in
                         Chip(title: o, on: on.contains(o)) {

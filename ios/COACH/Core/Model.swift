@@ -305,13 +305,13 @@ enum Groups {
     static func name(_ s: Store, _ gid: String) -> String { get(s, gid)?.string("name") ?? "" }
 
     static func of(_ s: Store, _ athleteId: String) -> String {
-        for g in all(s) where g["members"].list.contains(where: { $0.string == athleteId && !athleteId.isEmpty }) { return g.string("id") }
+        for g in all(s) where g["members"].list.contains(where: { $0.asString == athleteId && !athleteId.isEmpty }) { return g.string("id") }
         return ""
     }
 
     static func members(_ s: Store, _ gid: String) -> [JSON] {
         guard let g = get(s, gid) else { return [] }
-        let m = g["members"].list.map { $0.string }
+        let m = g["members"].list.map { $0.asString }
         return s.all(Store.athletes).filter { m.contains($0.string("id")) }.sorted { $0.string("name") < $1.string("name") }
     }
 
@@ -320,7 +320,7 @@ enum Groups {
         let known = Set(all(s).map { $0.string("id") })
         var out: [String] = []
         for g in session["groups"].list {
-            let id = g.string
+            let id = g.asString
             if known.contains(id) && !out.contains(id) { out.append(id) }
         }
         return out

@@ -26,17 +26,19 @@ enum JSON: Equatable {
     }
 
     init(any: Any?) {
-        switch any {
-        case nil, is NSNull: self = .null
-        case let n as NSNumber:
+        guard let v = any, !(v is NSNull) else { self = .null; return }
+        if let n = v as? NSNumber, !(v is String) {
             if CFGetTypeID(n) == CFBooleanGetTypeID() { self = .bool(n.boolValue) } else { self = .num(n.doubleValue) }
-        case let s as String: self = .str(s)
-        case let a as [Any]: self = .arr(a.map { JSON(any: $0) })
-        case let o as [String: Any]:
+        } else if let s = v as? String {
+            self = .str(s)
+        } else if let a = v as? [Any] {
+            self = .arr(a.map { JSON(any: $0) })
+        } else if let o = v as? [String: Any] {
             var m: [String: JSON] = [:]
-            for (k, v) in o { m[k] = JSON(any: v) }
+            for (k, x) in o { m[k] = JSON(any: x) }
             self = .obj(m)
-        default: self = .null
+        } else {
+            self = .null
         }
     }
 
@@ -138,7 +140,7 @@ enum JSON: Equatable {
     var count: Int { list.count }
 
     /// org.json optString: numbers as written ("100", "2.5"), booleans as "true"/"false", "" otherwise.
-    var string: String {
+    var asString: String {
         switch self {
         case .str(let s): return s
         case .num(let d): return JSON.numberText(d)
@@ -152,7 +154,7 @@ enum JSON: Equatable {
         if v.isNull { return def }
         if case .obj = v { return v.text }
         if case .arr = v { return v.text }
-        return v.string
+        return v.asString
     }
 
     /// org.json optDouble: numbers, or strings that parse; def otherwise.

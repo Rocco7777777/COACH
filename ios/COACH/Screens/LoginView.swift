@@ -111,9 +111,12 @@ struct LoginView: View {
         let store = Store.shared
         Task { @MainActor in
             do {
-                let p: JSON? = register
-                    ? try await store.signUp(email: email, password: password, name: name, joinCode: coach ? "" : clean, teamName: coach ? team : "")
-                    : try await store.signIn(email: email, password: password)
+                var p: JSON?
+                if register {
+                    p = try await store.signUp(email: email, password: password, name: name, joinCode: coach ? "" : clean, teamName: coach ? team : "")
+                } else {
+                    p = try await store.signIn(email: email, password: password)
+                }
                 if p != nil {
                     // a wrong code doesn't undo the login: the join screen asks again
                     do { try await store.ensureTeam() } catch { store.teamError = error.localizedDescription }
