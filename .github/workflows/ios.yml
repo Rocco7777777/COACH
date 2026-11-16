@@ -9,6 +9,9 @@ concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-15
@@ -61,12 +64,17 @@ jobs:
             xcrun simctl io "$DEV" screenshot "shots/$s.png"
           done
 
-      - uses: actions/upload-artifact@v4
+      - name: Publish screenshots to branch ios-shots
         if: always()
-        with:
-          name: screenshots
-          path: ios/shots/
-          if-no-files-found: ignore
+        working-directory: ios
+        run: |
+          [ -d shots ] || exit 0
+          cd shots
+          git init -q -b ios-shots
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A && git commit -qm "screenshots ${{ github.sha }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ios-shots
 
       - name: TestFlight
         if: env.ASC_KEY_ID != ''
