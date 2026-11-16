@@ -345,17 +345,27 @@ struct BoardRow: View {
     let prog: Bool
     var body: some View {
         let mine = board.mine, lead = board.rows[0]
+        let coach = Prefs.isCoach
         HStack(spacing: 10) {
-            Text(mine.map { "\($0.place)" } ?? "–").font(C.display(20)).foregroundColor(C.carbon)
-                .frame(width: 40, height: 46)
-                .background(RoundedRectangle(cornerRadius: 10).fill(mine != nil && mine!.place <= 3 ? C.coral : Color(hex: 0xEDEFEE)))
+            if coach {
+                // the coach has no place of their own: the leader's initials
+                Text(Fmt.initials(lead.name)).font(C.display(14)).foregroundColor(.white)
+                    .frame(width: 40, height: 46)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(C.carbon))
+            } else {
+                Text(mine.map { "\($0.place)" } ?? "–").font(C.display(20)).foregroundColor(C.carbon)
+                    .frame(width: 40, height: 46)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(mine != nil && mine!.place <= 3 ? C.coral : Color(hex: 0xEDEFEE)))
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(board.name).font(C.bold(15)).foregroundColor(C.carbon).lineLimit(1)
                 Text(mine?.place == 1 ? "vodiš, \(board.rows.count) na ljestvici" : "vodi " + Fmt.shortName(lead.name) + " · " + Boards.value(board, lead, prog))
                     .font(C.text(12)).foregroundColor(C.muted).lineLimit(1)
             }
             Spacer(minLength: 4)
-            if let m = mine {
+            if coach {
+                Text("\(board.rows.count) sport.").font(C.text(12)).foregroundColor(C.muted)
+            } else if let m = mine {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(Boards.value(board, m, prog)).font(C.bold(14)).foregroundColor(C.carbon)
                     Text(m.move > 0 ? "▲ \(m.move)" : m.move < 0 ? "▼ \(-m.move)" : "=")
