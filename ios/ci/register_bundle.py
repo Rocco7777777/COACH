@@ -26,3 +26,5 @@ else:
     print("registered bundle id:", bundle)
 apps = call("GET", "/v1/apps?filter[bundleId]=" + bundle)["data"]
 print("App Store Connect app:", apps[0]["attributes"]["name"] if apps else "NOT CREATED YET (create it in App Store Connect)")
+if not apps:
+    open("no_app", "w").write("1")  # the workflow archives (checks signing) but skips the upload

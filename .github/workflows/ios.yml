@@ -90,6 +90,7 @@ jobs:
             -archivePath build/COACH.xcarchive $AUTH DEVELOPMENT_TEAM=$APPLE_TEAM_ID CODE_SIGN_STYLE=Automatic \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} archive > archive.log 2>&1 \
             || { grep -E "error:" archive.log | sort -u | head -60; tail -40 archive.log; exit 1; }
+          if [ -f no_app ]; then echo "::warning::Archive signed OK. Upload skipped: create the app in App Store Connect first."; exit 0; fi
           /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" ExportOptions.plist
           xcodebuild -exportArchive -archivePath build/COACH.xcarchive -exportOptionsPlist ExportOptions.plist \
             -exportPath build/export $AUTH 2>&1 | tail -40
