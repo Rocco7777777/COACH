@@ -163,6 +163,50 @@ final class Store: ObservableObject {
         _ = try await rpc("delete_my_account", .object())
     }
 
+    // MARK: coach: team
+
+    func newJoinCode() async throws {
+        _ = try await rpc("new_join_code", .object())
+        try await loadTeam()
+        changed()
+    }
+
+    func renameTeam(_ name: String) async throws {
+        _ = try await rpc("rename_team", ["p_name": .str(name)])
+        try await loadTeam()
+        changed()
+    }
+
+    func removeAthlete(_ id: String) async throws {
+        _ = try await rpc("remove_athlete", ["p_id": .str(id)])
+        var m = coll(Store.athletes)
+        m.removeValue(forKey: id)
+        cache[Store.athletes] = m
+        persist(Store.athletes)
+        changed()
+    }
+
+    func renameAthlete(_ id: String, _ name: String) async throws {
+        if demo {
+            if var d = doc(Store.athletes, id) {
+                d["name"] = .str(name)
+                seedPut(Store.athletes, d)
+                persist(Store.athletes)
+                changed()
+            }
+            return
+        }
+        _ = try await http("PATCH", "/rest/v1/profiles?id=eq." + enc(id), JSON.obj(["name": .str(name)]).text)
+        if var d = doc(Store.athletes, id) {
+            d["name"] = .str(name)
+            var m = coll(Store.athletes)
+            m[id] = d
+            cache[Store.athletes] = m
+            persist(Store.athletes)
+        }
+        changed()
+    }
+
     // MARK: leaderboards
 
     private var board: [JSON]?

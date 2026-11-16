@@ -33,6 +33,12 @@ enum Prefs {
         set { d.set(newValue, forKey: "pendingTeam") }
     }
 
+    /// The group the coach is looking at (TRENINZI, SPORTAŠI, LJESTVICE, Dolasci).
+    static var group: String {
+        get { s("group") }
+        set { d.set(newValue, forKey: "group") }
+    }
+
     static var demoMode: Bool {
         get { d.bool(forKey: "demoMode") }
         set { d.set(newValue, forKey: "demoMode") }
@@ -70,7 +76,7 @@ enum Prefs {
     }
 
     static func clearSession() {
-        for k in ["athleteId", "email", "accessToken", "refreshToken", "tokenExpiry", "name", "role", "teamId",
+        for k in ["athleteId", "email", "accessToken", "refreshToken", "tokenExpiry", "name", "role", "teamId", "group",
                   "teamName", "teamCoach", "joinCode", "pendingCode", "pendingTeam"] {
             d.removeObject(forKey: k)
         }

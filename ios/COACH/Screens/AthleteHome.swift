@@ -31,6 +31,9 @@ struct AthleteHome: View {
             .background(C.chalk)
             .toolbar {
                 ToolbarItem(placement: .principal) { HeaderTitle() }
+                if store.demo {
+                    ToolbarItem(placement: .navigationBarLeading) { DemoSwitch() }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     NavigationLink(value: Route.settings) {
                         Image(systemName: "gearshape.fill").foregroundColor(.white)
@@ -100,7 +103,11 @@ struct HeaderTitle: View {
         HStack(spacing: 8) {
             TrackLogo(size: 18)
             Text("COACH").font(C.display(19)).foregroundColor(.white)
-            if Prefs.demoMode { Tag(text: "DEMO", fg: C.carbon, bg: C.coral) }
+            if Prefs.demoMode {
+                Tag(text: "DEMO", fg: C.carbon, bg: C.coral)
+            } else if Prefs.isCoach {
+                Tag(text: "TRENER", fg: C.carbon, bg: C.coral)
+            }
         }
     }
 }

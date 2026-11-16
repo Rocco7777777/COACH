@@ -37,7 +37,9 @@ struct SettingsView: View {
                         Label12("Demo verzija")
                         Text("Primjer bez prijave i bez baze. Podaci su izmišljeni i ostaju samo na ovom mobitelu.")
                             .font(C.text(15)).foregroundColor(C.carbon).padding(.top, 6)
-                        GhostButton(title: "Vrati primjer podatke") { Demo.reset() }.padding(.top, 12)
+                        PillButton(title: Prefs.isCoach ? "Prebaci na sportaša" : "Prebaci na trenera", color: C.carbon, fg: .white) { Demo.switchRole() }
+                            .padding(.top, 12)
+                        GhostButton(title: "Vrati primjer podatke") { Demo.reset() }.padding(.top, 8)
                         GhostButton(title: "Izađi iz dema") { Demo.exit() }.padding(.top, 8)
                     }
                 } else {

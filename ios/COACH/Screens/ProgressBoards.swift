@@ -247,13 +247,20 @@ struct BoardTab: View {
     var body: some View {
         let boards = Boards.forTeam(store, prog: prog)
         let mine = boards.compactMap { $0.mine }
-        let gname = Groups.name(store, Groups.of(store, Prefs.athleteId))
+        let coach = Prefs.isCoach
+        let gname = Groups.name(store, coach ? Groups.selected(store) : Groups.of(store, Prefs.athleteId))
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Label12(gname.isEmpty ? "Ljestvice" : "Ljestvice · " + gname, color: Color(hex: 0xA9AFB3))
-                        if mine.isEmpty {
+                        if coach {
+                            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                                Text("\(boards.count)").font(C.display(40)).foregroundColor(.white)
+                                Text(gname.isEmpty ? "ljestvica u timu" : "ljestvica u grupi").font(C.text(14)).foregroundColor(Color(hex: 0xA9AFB3))
+                            }
+                            Text("Dodirni ljestvicu za postolje i cijeli poredak.").font(C.text(12)).foregroundColor(Color(hex: 0xA9AFB3))
+                        } else if mine.isEmpty {
                             Text("JOŠ NISI NA LJESTVICI").font(C.display(20)).foregroundColor(.white).padding(.top, 4)
                             Text(prog ? "Za Napredak trebaju barem dva upisa iste vježbe." : "Upiši rezultate na treningu.")
                                 .font(C.text(12)).foregroundColor(Color(hex: 0xA9AFB3))
@@ -325,7 +332,7 @@ struct BoardTab: View {
     }
 
     private func load(force: Bool) async {
-        if store.demo || loading { return }
+        if store.demo || Prefs.isCoach || loading { return }
         if !force, let at = store.boardAt, Date().timeIntervalSince(at) < 120 { return }
         loading = true
         do { try await store.loadBoard(); error = nil } catch { self.error = error.localizedDescription }

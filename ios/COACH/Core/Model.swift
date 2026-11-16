@@ -113,10 +113,75 @@ enum Model {
 
     static func hold(_ item: JSON) -> Bool { item.string("unit") == "s" }
 
+    /// One logged gym set, reps first: "5 pon.  ·  100 kg  ·  @8", "30 s  ·  40 kg"; the RPE only when asked for.
     static func setText(_ item: JSON, _ e: JSON, rpe: Bool) -> String {
-        var s = e.string("kg") + "×" + e.string("reps") + (hold(item) ? " s" : "")
-        if rpe && !e.string("rpe").isEmpty { s += " @" + e.string("rpe") }
+        let reps = e.string("reps").trimmingCharacters(in: .whitespaces)
+        return (reps.isEmpty ? "?" : number(reps)) + (hold(item) ? " s" : " pon.") + kgRpe(e, rpe)
+    }
+
+    /// The ticked sets of one gym item the way the coach writes the plan: sets, reps, kg, RPE.
+    /// Equal sets in a row are merged: ["3 × 5  ·  100 kg  ·  @8", "1 × 4  ·  102,5 kg  ·  @9"].
+    static func setLines(_ item: JSON, _ en: [JSON], rpe: Bool) -> [String] {
+        var out: [String] = []
+        var last: String?
+        var n = 0
+        for e in en where e.isObject && e.bool("done") {
+            let reps = e.string("reps").trimmingCharacters(in: .whitespaces)
+            let tail = (reps.isEmpty ? "?" : number(reps)) + (hold(item) ? " s" : "") + kgRpe(e, rpe)
+            if tail == last {
+                n += 1
+                continue
+            }
+            if let l = last { out.append("\(n) × " + l) }
+            last = tail
+            n = 1
+        }
+        if let l = last { out.append("\(n) × " + l) }
+        return out
+    }
+
+    /// "  ·  100 kg  ·  @8" (no kg part for body weight, no @ when not asked for).
+    private static func kgRpe(_ e: JSON, _ rpe: Bool) -> String {
+        var s = ""
+        if Fmt.num(e.string("kg")) > 0 { s += "  ·  " + number(e.string("kg")) + " kg" }
+        if rpe && Fmt.num(e.string("rpe")) > 0 { s += "  ·  @" + number(e.string("rpe")) }
         return s
+    }
+
+    /// "102.5" → "102,5", "100" → "100"; anything that isn't a number stays as typed.
+    static func number(_ v: String) -> String {
+        let t = v.trimmingCharacters(in: .whitespaces)
+        guard let d = Decimal(string: t.replacingOccurrences(of: ",", with: "."), locale: Locale(identifier: "en_US_POSIX")),
+              t.range(of: "^-?[0-9]*[.,]?[0-9]+$", options: .regularExpression) != nil else { return t }
+        return NSDecimalNumber(decimal: d).stringValue.replacingOccurrences(of: ".", with: ",")
+    }
+
+    /// "Ivan K., Petra N." – athletes with their own numbers somewhere in the session.
+    static func ownNames(_ session: JSON?, _ athletes: [JSON]) -> String {
+        guard let items = session?["items"].list else { return "" }
+        var out: [String] = []
+        for at in athletes {
+            let id = at.string("id")
+            if items.contains(where: { own($0, id) != nil }) { out.append(Fmt.shortName(at.string("name"))) }
+        }
+        return out.joined(separator: ", ")
+    }
+
+    static func findItem(_ session: JSON?, _ itemId: String) -> JSON? {
+        session?["items"].list.first { $0.isObject && $0.string("id") == itemId }
+    }
+
+    /// Season totals of one athlete: km, kg, sessions with something logged.
+    @MainActor
+    static func season(_ s: Store, _ athleteId: String) -> (km: Double, kg: Double, n: Double) {
+        var km = 0.0, kg = 0.0, n = 0.0
+        for r in s.where(Store.results, "athleteId", athleteId) {
+            let t = totals(s.doc(Store.sessions, r.string("sessionId")), r)
+            km += t.km
+            kg += t.kg
+            if t.done > 0 { n += 1 }
+        }
+        return (km, kg, n)
     }
 
     static func title(_ item: JSON) -> String {
@@ -286,7 +351,10 @@ enum Results {
     }
 }
 
-/// Groups inside one team (Groups.java), the parts an athlete's phone needs.
+/// Groups inside one team (Groups.java): config/groups = {groups:[{id, name, members:[athleteId]}], moves:[{a, g, d}]}.
+/// A session with session.groups = [groupId] is for those groups only; without the field it is for the whole team.
+/// An athlete is in at most one group; one without a group sees every session. moves logs every change of group
+/// ("" date = from the start), so attendance judges each past session by the group the athlete was in on that day.
 @MainActor
 enum Groups {
     static let doc = "groups"
@@ -305,14 +373,38 @@ enum Groups {
     static func name(_ s: Store, _ gid: String) -> String { get(s, gid)?.string("name") ?? "" }
 
     static func of(_ s: Store, _ athleteId: String) -> String {
-        for g in all(s) where g["members"].list.contains(where: { $0.asString == athleteId && !athleteId.isEmpty }) { return g.string("id") }
+        for g in all(s) where has(g["members"], athleteId) { return g.string("id") }
         return ""
     }
 
+    static func moves(_ s: Store) -> [JSON] { s.doc(Store.config, doc)?["moves"].list ?? [] }
+
+    /// The athlete's group on that date by the move log. A move counts from the day after it was made.
+    /// Without any logged move: their group now.
+    static func groupOn(_ moves: [JSON], _ athleteId: String, _ date: String, _ now: String) -> String {
+        var g: String?
+        for m in moves where m.isObject && m.string("a") == athleteId {
+            if g == nil { g = "" }
+            if m.string("d") < date { g = m.string("g") }
+        }
+        return g ?? now
+    }
+
+    private static func move(_ a: String, _ g: String, _ d: String) -> JSON { ["a": .str(a), "g": .str(g), "d": .str(d)] }
+
     static func members(_ s: Store, _ gid: String) -> [JSON] {
         guard let g = get(s, gid) else { return [] }
-        let m = g["members"].list.map { $0.asString }
-        return s.all(Store.athletes).filter { m.contains($0.string("id")) }.sorted { $0.string("name") < $1.string("name") }
+        return byName(s.all(Store.athletes).filter { has(g["members"], $0.string("id")) })
+    }
+
+    /// Athletes of the team in no group (empty when there are no groups).
+    static func unassigned(_ s: Store) -> [JSON] {
+        if !any(s) { return [] }
+        return byName(s.all(Store.athletes).filter { of(s, $0.string("id")).isEmpty })
+    }
+
+    static func byName(_ a: [JSON]) -> [JSON] {
+        a.sorted { $0.string("name").localizedCompare($1.string("name")) == .orderedAscending }
     }
 
     static func ofSession(_ s: Store, _ session: JSON?) -> [String] {
@@ -324,6 +416,24 @@ enum Groups {
             if known.contains(id) && !out.contains(id) { out.append(id) }
         }
         return out
+    }
+
+    /// Keeps only groups that still exist; none left or every group = the whole team (no field).
+    static func tidy(_ s: Store, _ session: inout JSON) {
+        if !session["groups"].isArray { return }
+        let gs = ofSession(s, session)
+        if gs.isEmpty || gs.count == all(s).count {
+            session.remove("groups")
+            return
+        }
+        session["groups"] = .arr(gs.map { .str($0) })
+    }
+
+    /// The coach's list for one group: sessions for that group or for the whole team. Empty gid = everything.
+    static func forGroup(_ s: Store, _ session: JSON, _ gid: String) -> Bool {
+        if gid.isEmpty { return true }
+        let gs = ofSession(s, session)
+        return gs.isEmpty || gs.contains(gid)
     }
 
     static func meantFor(_ s: Store, _ session: JSON, _ athleteId: String) -> Bool {
@@ -341,11 +451,105 @@ enum Groups {
         return sessions.filter { sees(s, $0, athleteId) }
     }
 
-    /// Whose results go on the athlete's leaderboards: their group, or the whole team.
+    /// Who the session is for (Zapisnik rows, "x/y upisalo", Dolazak), sorted by name.
+    static func audience(_ s: Store, _ session: JSON) -> [JSON] {
+        let everyone = byName(s.all(Store.athletes))
+        if !any(s) { return everyone }
+        return everyone.filter { sees(s, session, $0.string("id")) }
+    }
+
+    /// Whose results go on the leaderboards: the coach's chosen group, the athlete's own group, or the whole team.
     static func boardTeam(_ s: Store, _ me: String) -> [JSON] {
         let everyone = s.all(Store.athletes)
         if !any(s) { return everyone }
-        let gid = of(s, me)
+        let gid = Prefs.isCoach ? selected(s) : of(s, me)
         return gid.isEmpty ? everyone : members(s, gid)
+    }
+
+    /// "Obje grupe", "Sve grupe", "Sprinteri + Skakači", or "" when the session is for one group or there is one group.
+    static func tag(_ s: Store, _ session: JSON) -> String {
+        let gs = all(s)
+        if gs.count < 2 { return "" }
+        let mine = ofSession(s, session)
+        if mine.isEmpty || mine.count == gs.count { return gs.count == 2 ? "Obje grupe" : "Sve grupe" }
+        if mine.count == 1 { return "" }
+        return mine.map { name(s, $0) }.joined(separator: " + ")
+    }
+
+    // MARK: the coach's chosen group
+
+    static func selected(_ s: Store) -> String {
+        let gs = all(s)
+        if gs.isEmpty { return "" }
+        let id = Prefs.group
+        return gs.contains { $0.string("id") == id } ? id : gs[0].string("id")
+    }
+
+    static func select(_ gid: String) { Prefs.group = gid }
+
+    // MARK: writes (coach)
+
+    private static func save(_ s: Store, _ groups: [JSON], _ moves: [JSON]) {
+        s.put(Store.config, ["id": .str(doc), "groups": .arr(groups), "moves": .arr(moves)])
+    }
+
+    /// New group. The first group gets every athlete of the team, so nobody is left out. Returns its id.
+    @discardableResult
+    static func create(_ s: Store, _ name: String) -> String {
+        var gs = all(s)
+        var mv = moves(s)
+        let id = "g" + Fmt.id()
+        var members: [JSON] = []
+        if gs.isEmpty {
+            for at in s.all(Store.athletes) {
+                members.append(.str(at.string("id")))
+                mv.append(move(at.string("id"), id, "")) // founding members: in the group from the start
+            }
+        }
+        gs.append(["id": .str(id), "name": .str(name.trimmingCharacters(in: .whitespaces)), "members": .arr(members)])
+        save(s, gs, mv)
+        return id
+    }
+
+    static func rename(_ s: Store, _ gid: String, _ name: String) {
+        let gs = all(s).map { g -> JSON in
+            var g = g
+            if g.string("id") == gid { g["name"] = .str(name.trimmingCharacters(in: .whitespaces)) }
+            return g
+        }
+        save(s, gs, moves(s))
+    }
+
+    /// Removes the group; its athletes are left in no group and its sessions count as the whole team's.
+    static func delete(_ s: Store, _ gid: String) {
+        var keep: [JSON] = []
+        var mv = moves(s)
+        for g in all(s) {
+            if g.string("id") != gid { keep.append(g); continue }
+            for m in g["members"].list { mv.append(move(m.asString, "", Fmt.today())) }
+        }
+        save(s, keep, mv)
+    }
+
+    /// Puts the athlete into the group (and out of any other) from today on; empty gid = no group.
+    static func assign(_ s: Store, _ athleteId: String, _ gid: String) {
+        let was = of(s, athleteId)
+        if gid == was { return }
+        var mv = moves(s)
+        // someone in a group from before the log existed: keep that as their past
+        if !was.isEmpty && groupOn(mv, athleteId, "9999", "").isEmpty { mv.append(move(athleteId, was, "")) }
+        let gs = all(s).map { g -> JSON in
+            var g = g
+            var n = g["members"].list.filter { $0.asString != athleteId }
+            if g.string("id") == gid { n.append(.str(athleteId)) }
+            g["members"] = .arr(n)
+            return g
+        }
+        mv.append(move(athleteId, gid, Fmt.today()))
+        save(s, gs, mv)
+    }
+
+    private static func has(_ a: JSON, _ v: String) -> Bool {
+        !v.isEmpty && a.list.contains { $0.asString == v }
     }
 }

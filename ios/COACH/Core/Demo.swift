@@ -32,12 +32,23 @@ enum Demo {
         if s.all(Store.sessions).isEmpty { seed(s) }
     }
 
+    static let code = "TRK426"
+    static let teamName = "AK Demo"
+
+    /// The demo has both sides: the same made-up team seen by its coach or by an athlete.
+    static func switchRole() {
+        Prefs.setProfile(name: team[0].1, role: Prefs.isCoach ? "athlete" : "coach")
+        Store.shared.sessionChanged()
+        Toast.shared.show(Prefs.isCoach ? "Sad gledaš kao trener" : "Sad gledaš kao sportaš")
+    }
+
     static func reset() {
         let s = Store.shared
+        let role = Prefs.role
         s.wipe()
         Prefs.demoMode = true
         Prefs.setSession(id: me, email: "demo@coach.app", access: "", refresh: "", expiry: 0)
-        Prefs.setProfile(name: team[0].1, role: "athlete")
+        Prefs.setProfile(name: team[0].1, role: role)
         seed(s)
         s.sessionChanged()
     }

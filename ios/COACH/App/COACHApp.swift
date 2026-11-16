@@ -55,6 +55,8 @@ struct COACHApp: App {
             } else {
                 Demo.setUp()
             }
+            // "c-…" shots show the demo team through its coach's eyes
+            if shot != "login" { Prefs.setProfile(name: Demo.team[0].1, role: shot.hasPrefix("c-") ? "coach" : "athlete") }
         } else if Prefs.demoMode {
             Demo.setUp()
         }
@@ -95,7 +97,7 @@ struct RootView: View {
         } else if !store.demo && Prefs.teamId.isEmpty {
             JoinView()
         } else if Prefs.isCoach {
-            CoachWaitView()
+            CoachHome()
         } else {
             AthleteHome()
         }
@@ -108,31 +110,5 @@ struct RootView: View {
             await store.sync()
             Reminders.schedule()
         }
-    }
-}
-
-/// The coach's tools are still Android only.
-struct CoachWaitView: View {
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Card(padding: 20, background: C.carbon, border: nil) {
-                    TrackLogo(size: 40)
-                    Text("BOK, \(Fmt.firstName(Prefs.name).uppercased())").font(C.display(24)).foregroundColor(.white).padding(.top, 12)
-                    Text("Trenerski dio (slaganje treninga, Zapisnik, grupe, Excel) na iPhoneu još ne postoji. Za sada ga koristi na Android mobitelu ili tabletu. Sve je u istoj bazi, pa sportaši s iPhoneom vide tvoje treninge.")
-                        .font(C.text(15)).foregroundColor(C.mutedLight).padding(.top, 8)
-                }
-                if !Prefs.joinCode.isEmpty {
-                    Card {
-                        Label12("Kod tvog tima")
-                        Text(Prefs.joinCode).font(C.display(30)).tracking(6).foregroundColor(C.carbon).padding(.top, 6)
-                        Text("Sportaši ga upišu kod registracije.").font(C.text(13)).foregroundColor(C.muted).padding(.top, 4)
-                    }
-                }
-                GhostButton(title: "Odjavi se") { Session.logoutSafely() }
-            }
-            .padding(16)
-        }
-        .background(C.chalk)
     }
 }

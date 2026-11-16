@@ -23,8 +23,9 @@ enum Boards {
 
     /// An athlete's boards: teammates' results come from the server (team_board), mine from this phone.
     static func forTeam(_ store: Store, prog: Bool) -> [Board] {
-        let me = Prefs.athleteId
-        let local = store.demo
+        // the coach's phone has every athlete's results; so has the demo
+        let me = Prefs.isCoach ? "" : Prefs.athleteId
+        let local = store.demo || Prefs.isCoach
         var names: [(String, String)] = Groups.boardTeam(store, me).map { ($0.string("id"), $0.string("name")) }
         if !me.isEmpty && !names.contains(where: { $0.0 == me }) { names.append((me, Prefs.name)) }
         var theirs: [String: [JSON]] = [:]

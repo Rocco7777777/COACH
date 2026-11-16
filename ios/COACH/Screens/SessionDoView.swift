@@ -3,6 +3,9 @@ import SwiftUI
 /// The athlete enters their own splits / sets for one session (SessionDoScreen.java).
 struct SessionDoView: View {
     let sessionId: String
+    /// Set when the coach's tablet logs for an athlete without a phone (Zapisnik).
+    var athleteId: String? = nil
+    var athleteName: String? = nil
     @ObservedObject var store = Store.shared
     @Environment(\.dismiss) private var dismiss
     @State private var result: JSON = .null
@@ -17,7 +20,8 @@ struct SessionDoView: View {
         var id: String { "\(itemId)/\(index)" }
     }
 
-    private var me: String { Prefs.athleteId }
+    private var me: String { athleteId ?? Prefs.athleteId }
+    private var myName: String { athleteName ?? Prefs.name }
     private var session: JSON? { store.doc(Store.sessions, sessionId) }
 
     var body: some View {
@@ -30,7 +34,7 @@ struct SessionDoView: View {
             }
         }
         .background(C.chalk)
-        .navigationTitle(session?.string("title", "Trening") ?? "Trening")
+        .navigationTitle(athleteName.map { Fmt.shortName($0) } ?? session?.string("title", "Trening") ?? "Trening")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(C.carbon, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -110,7 +114,7 @@ struct SessionDoView: View {
         if loaded && dirty { return }
         var r = store.doc(Store.results, Model.resultId(sessionId, me)) ?? [
             "id": .str(Model.resultId(sessionId, me)), "sessionId": .str(sessionId), "athleteId": .str(me),
-            "athleteName": .str(Prefs.name), "date": .str(s.string("date")), "entries": .object(),
+            "athleteName": .str(myName), "date": .str(s.string("date")), "entries": .object(),
         ]
         if !r["entries"].isObject { r["entries"] = .object() }
         for raw in s["items"].list where raw.isObject {
@@ -146,7 +150,7 @@ struct SessionDoView: View {
     }
 
     private func save() {
-        result["athleteName"] = .str(Prefs.name)
+        result["athleteName"] = .str(myName)
         store.put(Store.results, result)
         if let fresh = store.doc(Store.results, Model.resultId(sessionId, me)) { result = fresh }
         dirty = false
@@ -364,13 +368,16 @@ struct TimeFieldView: View {
     let hint: String
     let secondsOnlyWanted: Bool
     let changed: (String) -> Void
+    /// Only minutes typed over the grey hint: the hint's seconds count, as shown ("5" over 4:30 = 5:30).
+    var keepHintSeconds = false
     @State private var min: String
     @State private var sec: String
     @State private var autoMin = false
 
-    init(value: String, hint: String, secondsOnly: Bool, changed: @escaping (String) -> Void) {
+    init(value: String, hint: String, secondsOnly: Bool, keepHintSeconds: Bool = false, changed: @escaping (String) -> Void) {
         self.hint = hint
         self.secondsOnlyWanted = secondsOnly
+        self.keepHintSeconds = keepHintSeconds
         self.changed = changed
         let v = Fmt.parseTime(value)
         if v < 0 {
@@ -427,6 +434,10 @@ struct TimeFieldView: View {
         let m = min.trimmingCharacters(in: .whitespaces)
         if s.isEmpty && m.isEmpty { changed(""); return }
         guard let mm = m.isEmpty ? 0 : Int(m), let ss = s.isEmpty ? 0 : Double(s) else { return }
+        if keepHintSeconds && s.isEmpty && hintTotal > 0 {
+            changed(Fmt.time(Double(mm) * 60 + hintTotal.truncatingRemainder(dividingBy: 60)))
+            return
+        }
         changed(Fmt.time(Double(mm) * 60 + ss))
     }
 }
