@@ -50,6 +50,7 @@ enum Attendance {
 
     // MARK: one pass over the data
 
+    @MainActor
     struct Snapshot {
         let sessions: [JSON]
         var marks: [String: JSON] = [:]
@@ -73,6 +74,7 @@ enum Attendance {
         }
     }
 
+    @MainActor
     struct Person {
         let id: String
         let group: String
