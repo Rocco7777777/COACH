@@ -1,0 +1,87 @@
+name: iOS
+
+on:
+  push:
+    branches: [ios]
+    paths: ['ios/**', '.github/workflows/ios.yml']
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode
+        run: |
+          ls /Applications | grep Xcode
+          XC=$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - name: Generate project
+        working-directory: ios
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Build (simulator)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild -project COACH.xcodeproj -scheme COACH -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 \
+            || { grep -E "error:|warning: .*will be an error" build.log | sort -u | head -80; tail -30 build.log; exit 1; }
+          grep -c "warning:" build.log || true
+
+      - name: Screenshots (demo data)
+        working-directory: ios
+        run: |
+          set -x
+          DEV=$(xcrun simctl list devices available | grep -E "iPhone 16 Pro \(" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          [ -z "$DEV" ] && DEV=$(xcrun simctl list devices available | grep -E "iPhone" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          xcrun simctl boot "$DEV"
+          xcrun simctl bootstatus "$DEV" -b
+          xcrun simctl status_bar "$DEV" override --time 9:41 --batteryLevel 100 --cellularBars 4 || true
+          xcrun simctl install "$DEV" build/Build/Products/Debug-iphonesimulator/COACH.app
+          mkdir -p shots
+          for s in login training session gym run journal wellness progress series board settings; do
+            xcrun simctl terminate "$DEV" com.coach.mojaaplikacija || true
+            xcrun simctl launch "$DEV" com.coach.mojaaplikacija -shot $s
+            sleep 7
+            xcrun simctl io "$DEV" screenshot "shots/$s.png"
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: ios/shots/
+          if-no-files-found: ignore
+
+      - name: TestFlight
+        if: env.ASC_KEY_ID != ''
+        working-directory: ios
+        run: |
+          set -o pipefail
+          mkdir -p ~/private_keys
+          printf '%s' "$ASC_KEY_P8" > ~/private_keys/AuthKey_$ASC_KEY_ID.p8
+          pip3 install --break-system-packages pyjwt cryptography >/dev/null 2>&1 || pip3 install pyjwt cryptography >/dev/null
+          python3 ci/register_bundle.py com.coach.mojaaplikacija
+          AUTH="-allowProvisioningUpdates -authenticationKeyPath $HOME/private_keys/AuthKey_$ASC_KEY_ID.p8 -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID"
+          xcodebuild -project COACH.xcodeproj -scheme COACH -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath build/COACH.xcarchive $AUTH DEVELOPMENT_TEAM=$APPLE_TEAM_ID CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} archive > archive.log 2>&1 \
+            || { grep -E "error:" archive.log | sort -u | head -60; tail -40 archive.log; exit 1; }
+          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" ExportOptions.plist
+          xcodebuild -exportArchive -archivePath build/COACH.xcarchive -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/export $AUTH 2>&1 | tail -40
