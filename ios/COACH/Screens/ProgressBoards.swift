@@ -146,7 +146,7 @@ struct SeriesView: View {
                         if let last = pts.last {
                             HStack(alignment: .lastTextBaseline, spacing: 6) {
                                 Text(s.fmt(last.tr)).font(C.display(38)).foregroundColor(.white)
-                                Text(Boards.unit(s).trimmingCharacters(in: .whitespaces) + "  ·  " + (top ? "najteži set" : s.metric))
+                                Text(unitLine(s))
                                     .font(C.text(13)).foregroundColor(C.mutedLight)
                             }
                             .padding(.top, 6)
@@ -225,6 +225,11 @@ struct SeriesView: View {
         }
     }
 
+    private func unitLine(_ s: Progress.Series) -> String {
+        let metric: String = top ? "najteži set" : s.metric
+        return Boards.unit(s).trimmingCharacters(in: .whitespaces) + "  ·  " + metric
+    }
+
     private func day(_ d: Int) -> Date { Date(timeIntervalSince1970: Double(d) * 86400 + 43200) }
 }
 
@@ -258,11 +263,7 @@ struct BoardTab: View {
                                 Text(Fmt.n((avg * 10).rounded() / 10) + ".").font(C.display(40)).foregroundColor(.white)
                                 Text("prosječno mjesto").font(C.text(14)).foregroundColor(Color(hex: 0xA9AFB3))
                             }
-                            let up = mine.filter { $0.move > 0 }.count, down = mine.filter { $0.move < 0 }.count
-                            (Text("▲ \(up)").foregroundColor(Color(hex: 0x3DDC97))
-                             + Text("   ▼ \(down)").foregroundColor(C.coral)
-                             + Text("   = \(mine.count - up - down)   u \(mine.count) " + (mine.count % 10 == 1 && mine.count % 100 != 11 ? "ljestvici" : "ljestvica") + ", 7 dana").foregroundColor(Color(hex: 0xA9AFB3)))
-                                .font(C.bold(13))
+                            movesText(mine).font(C.bold(13))
                         }
                     }
                     Spacer()
@@ -309,6 +310,18 @@ struct BoardTab: View {
                     .presentationDetents([.medium, .large])
             }
         }
+    }
+
+    private func movesText(_ mine: [Boards.Row]) -> Text {
+        let up = mine.filter { $0.move > 0 }.count
+        let down = mine.filter { $0.move < 0 }.count
+        let same = mine.count - up - down
+        let word: String = mine.count % 10 == 1 && mine.count % 100 != 11 ? "ljestvici" : "ljestvica"
+        let grey = Color(hex: 0xA9AFB3)
+        let a = Text("▲ \(up)").foregroundColor(Color(hex: 0x3DDC97))
+        let b = Text("   ▼ \(down)").foregroundColor(C.coral)
+        let c = Text("   = \(same)   u \(mine.count) \(word), 7 dana").foregroundColor(grey)
+        return a + b + c
     }
 
     private func load(force: Bool) async {

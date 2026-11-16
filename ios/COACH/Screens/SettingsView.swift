@@ -46,7 +46,7 @@ struct SettingsView: View {
                         Text(Prefs.name.uppercased()).font(C.display(22)).foregroundColor(C.carbon).padding(.top, 6)
                         Text(Prefs.email).font(C.text(14)).foregroundColor(C.muted).padding(.top, 2)
                         if !Prefs.teamName.isEmpty {
-                            Text("Tim: " + Prefs.teamName + (!Prefs.isCoach && !Prefs.teamCoach.isEmpty ? "  ·  trener " + Prefs.teamCoach : ""))
+                            Text(teamText)
                                 .font(C.bold(14)).foregroundColor(C.carbon).padding(.top, 6)
                         }
                         GhostButton(title: "Odjavi se") { Session.logoutSafely() }.padding(.top, 12)
@@ -61,8 +61,7 @@ struct SettingsView: View {
                 if !Prefs.isCoach {
                     Card {
                         Label12("Jutarnji upitnik")
-                        Text("Obavijest stiže u \(Prefs.reminderHour):" + String(format: "%02d", Prefs.reminderMinute)
-                             + ", a ako ga ne ispuniš, podsjeća te svaka 2 sata do 21 h.")
+                        Text(reminderText)
                             .font(C.text(15)).foregroundColor(C.carbon).padding(.top, 6)
                         DatePicker("Vrijeme obavijesti", selection: $reminder, displayedComponents: .hourAndMinute)
                             .font(C.bold(15)).foregroundColor(C.carbon).tint(C.coral)
@@ -98,9 +97,7 @@ struct SettingsView: View {
                     }
                 }
                 PrivacyLink().padding(.top, 4)
-                Text("COACH " + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
-                     + " (" + (Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "") + ")"
-                     + (Prefs.isCoach ? " · trener" : " · sportaš"))
+                Text(versionText)
                     .font(C.text(12)).foregroundColor(C.muted).frame(maxWidth: .infinity)
             }
             .padding(16)
@@ -128,6 +125,24 @@ struct SettingsView: View {
         } message: {
             Text("Promjena koje još nisu na serveru: \(nav.unsent) (nema interneta?). Ako se sad odjaviš, one se gube.")
         }
+    }
+
+    private var reminderText: String {
+        let m = String(format: "%02d", Prefs.reminderMinute)
+        return "Obavijest stiže u \(Prefs.reminderHour):\(m), a ako ga ne ispuniš, podsjeća te svaka 2 sata do 21 h."
+    }
+
+    private var versionText: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+        let role = Prefs.isCoach ? "trener" : "sportaš"
+        return "COACH \(v) (\(b)) · \(role)"
+    }
+
+    private var teamText: String {
+        var t = "Tim: " + Prefs.teamName
+        if !Prefs.isCoach && !Prefs.teamCoach.isEmpty { t += "  ·  trener " + Prefs.teamCoach }
+        return t
     }
 
     private var status: String {

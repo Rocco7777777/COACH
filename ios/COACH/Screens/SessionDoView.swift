@@ -64,7 +64,7 @@ struct SessionDoView: View {
                     Text(Fmt.niceRelative(s.string("date")) + (s.string("notes").isEmpty ? "" : "  ·  " + s.string("notes")))
                         .font(C.text(13)).foregroundColor(C.muted)
                     if hasGym {
-                        Text("✓ = serija odrađena. Druga kilaža? Prepravi broj." + (hasRpe ? " Teže ili lakše? Dodirni @." : ""))
+                        Text(hasRpe ? "✓ = serija odrađena. Druga kilaža? Prepravi broj. Teže ili lakše? Dodirni @." : "✓ = serija odrađena. Druga kilaža? Prepravi broj.")
                             .font(C.text(12)).foregroundColor(C.muted)
                     }
                 }
@@ -100,6 +100,8 @@ struct SessionDoView: View {
         }
         .scrollDismissesKeyboard(.interactively)
     }
+
+    static func rpeLabel(_ v: String) -> String { v.isEmpty ? "@–" : "@" + Fmt.n(Fmt.num(v)) }
 
     // MARK: data
 
@@ -260,7 +262,7 @@ struct SessionDoView: View {
                         let v = e.string("rpe")
                         let off = !v.isEmpty && Fmt.num(v) != Fmt.num(planned)
                         Button { rpePick = RpePick(itemId: id, index: i, planned: planned) } label: {
-                            Text(v.isEmpty ? "@–" : "@" + Fmt.n(Fmt.num(v))).font(C.bold(15)).foregroundColor(off ? .white : C.carbon)
+                            Text(SessionDoView.rpeLabel(v)).font(C.bold(15)).foregroundColor(off ? .white : C.carbon)
                                 .frame(width: 54, height: 44)
                                 .background(RoundedRectangle(cornerRadius: 12).fill(off ? C.blue : C.chalk))
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(off ? C.blue : C.stone, lineWidth: 1))
@@ -319,6 +321,17 @@ struct TypedRun: View {
     @State private var km: String
     @State private var seconds: Double
 
+    private var pace: Double? {
+        let k = Fmt.num(km)
+        return k >= 0.05 && seconds > 0 ? seconds / k : nil
+    }
+
+    private func paceText(_ p: Double) -> String {
+        var t = "Tempo " + Fmt.clock(p) + "/km"
+        if target > 0 { t += "  ·  cilj " + Fmt.clock(target) + "/km" }
+        return t
+    }
+
     init(km0: Double, s0: Double, target: Double, changed: @escaping (Double, Double) -> Void) {
         self.target = target
         self.changed = changed
@@ -338,11 +351,8 @@ struct TypedRun: View {
                 }
                 Spacer(minLength: 0)
             }
-            let k = Fmt.num(km)
-            if k >= 0.05 && seconds > 0 {
-                let p = seconds / k
-                Text("Tempo " + Fmt.clock(p) + "/km" + (target > 0 ? "  ·  cilj " + Fmt.clock(target) + "/km" : ""))
-                    .font(C.bold(14)).foregroundColor(C.pace(Model.paceLevel(p, target)))
+            if let p = pace {
+                Text(paceText(p)).font(C.bold(14)).foregroundColor(C.pace(Model.paceLevel(p, target)))
             }
         }
     }
