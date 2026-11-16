@@ -306,41 +306,22 @@ struct GroupsView: View {
     @State private var renaming: JSON?
     @State private var deleting: JSON?
 
+    // Split into small pieces: Xcode 26's type checker times out on one big body.
     var body: some View {
         let groups = Groups.all(store)
+        return dialogs(page(groups), groups)
+    }
+
+    private func page(_ groups: [JSON]) -> some View {
         let free = Groups.unassigned(store)
-        ScrollView {
+        return ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 if groups.isEmpty {
                     EmptyCard(title: "Još nema grupa", text: "Napravi prvu grupu i svi sadašnji sportaši idu u nju. Zatim napravi drugu i prebaci one koji treniraju s njom. Svaka grupa ima svoje treninge, dolaske i ljestvice.")
                 }
-                if !free.isEmpty {
-                    heading("Novi, bez grupe", "\(free.count)").padding(.top, 10)
-                    ForEach(free, id: \.idKey) { at in
-                        Card {
-                            Text(at.string("name")).font(C.bold(16)).foregroundColor(C.carbon)
-                            Text("Gdje trenira? Dok nije u grupi, vidi treninge svih grupa.").font(C.text(13)).foregroundColor(C.muted)
-                            FlowLayout(spacing: 6) {
-                                ForEach(groups, id: \.idKey) { g in
-                                    Chip(title: g.string("name"), on: false) { Groups.assign(store, at.string("id"), g.string("id")) }
-                                }
-                            }
-                            .padding(.top, 8)
-                        }
-                    }
-                }
+                if !free.isEmpty { freeSection(free, groups) }
                 ForEach(groups, id: \.idKey) { g in groupCard(g) }
-                Button {
-                    newName = ""
-                    creating = true
-                } label: {
-                    Text("+ NOVA GRUPA").font(C.display(15)).tracking(0.9).foregroundColor(C.blue)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(Capsule().stroke(C.stone, lineWidth: 1.5))
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 14)
+                newGroupButton
                 Text("Prije druge grupe neka svi s Androidom ažuriraju COACH na 2.5.0. Starije verzije ne znaju za grupe i pokazuju sve treninge.")
                     .font(C.text(12)).foregroundColor(C.muted).padding(.top, 6)
             }
@@ -352,39 +333,97 @@ struct GroupsView: View {
         .toolbarBackground(C.carbon, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .alert("Nova grupa", isPresented: $creating) {
-            TextField("npr. Sprinteri", text: $newName).textInputAutocapitalization(.words)
-            Button("Napravi") {
-                let n = newName.trimmingCharacters(in: .whitespaces)
-                if !n.isEmpty { Groups.select(Groups.create(store, n)) }
+    }
+
+    @ViewBuilder
+    private func freeSection(_ free: [JSON], _ groups: [JSON]) -> some View {
+        heading("Novi, bez grupe", "\(free.count)").padding(.top, 10)
+        ForEach(free, id: \.idKey) { at in
+            Card {
+                Text(at.string("name")).font(C.bold(16)).foregroundColor(C.carbon)
+                Text("Gdje trenira? Dok nije u grupi, vidi treninge svih grupa.").font(C.text(13)).foregroundColor(C.muted)
+                FlowLayout(spacing: 6) {
+                    ForEach(groups, id: \.idKey) { g in
+                        Chip(title: g.string("name"), on: false) { Groups.assign(store, at.string("id"), g.string("id")) }
+                    }
+                }
+                .padding(.top, 8)
             }
-            Button("Odustani", role: .cancel) {}
-        } message: {
-            if groups.isEmpty { Text("Svi sadašnji sportaši idu u ovu grupu. Zatim napravi drugu i prebaci one koji treniraju s njom.") }
         }
-        .alert("Preimenuj grupu", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
-            TextField("Naziv grupe", text: $newName)
-            Button("Spremi") {
-                let n = newName.trimmingCharacters(in: .whitespaces)
-                if let g = renaming, !n.isEmpty { Groups.rename(store, g.string("id"), n) }
+    }
+
+    private var newGroupButton: some View {
+        Button {
+            newName = ""
+            creating = true
+        } label: {
+            Text("+ NOVA GRUPA").font(C.display(15)).tracking(0.9).foregroundColor(C.blue)
+                .frame(maxWidth: .infinity, minHeight: 52)
+                .background(Capsule().stroke(C.stone, lineWidth: 1.5))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 14)
+    }
+
+    private var renameShown: Binding<Bool> {
+        Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })
+    }
+    private var deleteShown: Binding<Bool> {
+        Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })
+    }
+    private var moveShown: Binding<Bool> {
+        Binding(get: { moving != nil }, set: { if !$0 { moving = nil } })
+    }
+
+    private func dialogs<V: View>(_ v: V, _ groups: [JSON]) -> some View {
+        let deleteTitle: String = "Obrisati grupu \(deleting?.string("name") ?? "")?"
+        let moveTitle: String = moving?.string("name") ?? ""
+        return v
+            .alert("Nova grupa", isPresented: $creating) {
+                TextField("npr. Sprinteri", text: $newName).textInputAutocapitalization(.words)
+                Button("Napravi") { createGroup() }
+                Button("Odustani", role: .cancel) {}
+            } message: {
+                if groups.isEmpty { Text("Svi sadašnji sportaši idu u ovu grupu. Zatim napravi drugu i prebaci one koji treniraju s njom.") }
             }
-            Button("Odustani", role: .cancel) {}
-        }
-        .alert("Obrisati grupu " + (deleting?.string("name") ?? "") + "?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } })) {
-            Button("Obriši", role: .destructive) { if let g = deleting { Groups.delete(store, g.string("id")) } }
-            Button("Odustani", role: .cancel) {}
-        } message: {
-            Text("Sportaši iz nje idu pod \"bez grupe\", a njeni treninzi postaju treninzi cijelog tima. Rezultati ostaju.")
-        }
-        .confirmationDialog(moving?.string("name") ?? "", isPresented: Binding(get: { moving != nil }, set: { if !$0 { moving = nil } }),
-                            titleVisibility: .visible, presenting: moving) { at in
-            let now = Groups.of(store, at.string("id"))
-            ForEach(groups, id: \.idKey) { g in
-                Button((g.string("id") == now ? "✓ " : "") + g.string("name")) { Groups.assign(store, at.string("id"), g.string("id")) }
+            .alert("Preimenuj grupu", isPresented: renameShown) {
+                TextField("Naziv grupe", text: $newName)
+                Button("Spremi") { renameGroup() }
+                Button("Odustani", role: .cancel) {}
             }
-            Button((now.isEmpty ? "✓ " : "") + "Bez grupe") { Groups.assign(store, at.string("id"), "") }
-            Button("Zatvori", role: .cancel) {}
+            .alert(deleteTitle, isPresented: deleteShown) {
+                Button("Obriši", role: .destructive) { if let g = deleting { Groups.delete(store, g.string("id")) } }
+                Button("Odustani", role: .cancel) {}
+            } message: {
+                Text("Sportaši iz nje idu pod \"bez grupe\", a njeni treninzi postaju treninzi cijelog tima. Rezultati ostaju.")
+            }
+            .confirmationDialog(moveTitle, isPresented: moveShown, titleVisibility: .visible, presenting: moving) { at in
+                moveButtons(at, groups)
+            }
+    }
+
+    @ViewBuilder
+    private func moveButtons(_ at: JSON, _ groups: [JSON]) -> some View {
+        let id: String = at.string("id")
+        let now: String = Groups.of(store, id)
+        ForEach(groups, id: \.idKey) { g in
+            let gid: String = g.string("id")
+            let mark: String = gid == now ? "✓ " : ""
+            Button("\(mark)\(g.string("name"))") { Groups.assign(store, id, gid) }
         }
+        Button("\(now.isEmpty ? "✓ " : "")Bez grupe") { Groups.assign(store, id, "") }
+        Button("Zatvori", role: .cancel) {}
+    }
+
+    private func createGroup() {
+        let n = newName.trimmingCharacters(in: .whitespaces)
+        if !n.isEmpty { Groups.select(Groups.create(store, n)) }
+    }
+
+    private func renameGroup() {
+        let n = newName.trimmingCharacters(in: .whitespaces)
+        if let g = renaming, !n.isEmpty { Groups.rename(store, g.string("id"), n) }
     }
 
     private func heading(_ left: String, _ right: String) -> some View {
