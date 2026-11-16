@@ -27,9 +27,11 @@ jobs:
       - name: Xcode
         run: |
           ls /Applications | grep Xcode
-          XC=$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)
+          # App Store Connect only accepts builds made with the iOS 26 SDK (Xcode 26) or later
+          XC=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
           sudo xcode-select -s "$XC"
           xcodebuild -version
+          xcrun simctl list runtimes | grep -i ios || true
 
       - name: Generate project
         working-directory: ios
@@ -47,6 +49,7 @@ jobs:
           grep -c "warning:" build.log || true
 
       - name: Screenshots (demo data)
+        continue-on-error: true
         working-directory: ios
         run: |
           set -x

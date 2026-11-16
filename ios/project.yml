@@ -37,6 +37,7 @@ targets:
         UIAppFonts: [display.ttf]
         UILaunchScreen: {}
         UIUserInterfaceStyle: Light
+        UIDesignRequiresCompatibility: true
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIApplicationSceneManifest:
