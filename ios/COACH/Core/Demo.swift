@@ -229,7 +229,7 @@ enum Demo {
             for y in (year - 2)...year {
                 for (mi, meet) in meets.enumerated() {
                     let iso = String(format: "%04d-%02d-%02d", y, meet.0, meet.1)
-                    if iso >= today || rnd.float() < 0.3 { continue }
+                    if iso >= today || rnd.float() < 0.12 { continue }
                     // earlier seasons and the start of a season are a little worse; the form peaks in July
                     let age: Double = Double(year - y) * 0.018 + abs(Double(mi) - 4) * 0.004
                     let noise: Double = abs(rnd.gauss()) * 0.006
