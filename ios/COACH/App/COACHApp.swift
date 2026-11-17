@@ -37,6 +37,8 @@ enum Shot {
         if let i = a.firstIndex(of: "-shot"), i + 1 < a.count { return a[i + 1] }
         return nil
     }
+    /// `-store`: App Store screenshots, without the DEMO tag and the role switch.
+    static var store: Bool { ProcessInfo.processInfo.arguments.contains("-store") }
 }
 
 @main

@@ -53,7 +53,8 @@ jobs:
         working-directory: ios
         run: |
           set -x
-          DEV=$(xcrun simctl list devices available | grep -E "iPhone 16 Pro \(" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          # a 6.9" Pro Max gives 1320x2868, the size App Store Connect asks for
+          DEV=$(xcrun simctl list devices available | grep -E "iPhone 1[67] Pro Max \(" | tail -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
           [ -z "$DEV" ] && DEV=$(xcrun simctl list devices available | grep -E "iPhone" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
           xcrun simctl boot "$DEV"
           xcrun simctl bootstatus "$DEV" -b
@@ -65,6 +66,14 @@ jobs:
             xcrun simctl launch "$DEV" com.coach.mojaaplikacija -shot $s
             sleep 7
             xcrun simctl io "$DEV" screenshot "shots/$s.png"
+          done
+          # App Store set: same demo data, no DEMO tag or role switch
+          mkdir -p shots/store
+          for s in training session gym progress series board c-plan c-session c-log c-athlete; do
+            xcrun simctl terminate "$DEV" com.coach.mojaaplikacija || true
+            xcrun simctl launch "$DEV" com.coach.mojaaplikacija -shot $s -store
+            sleep 7
+            xcrun simctl io "$DEV" screenshot "shots/store/$s.png"
           done
 
       - name: Publish screenshots to branch ios-shots

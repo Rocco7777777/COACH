@@ -31,7 +31,7 @@ struct AthleteHome: View {
             .background(C.chalk)
             .toolbar {
                 ToolbarItem(placement: .principal) { HeaderTitle() }
-                if store.demo {
+                if store.demo && !Shot.store {
                     ToolbarItem(placement: .navigationBarLeading) { DemoSwitch() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -103,7 +103,7 @@ struct HeaderTitle: View {
         HStack(spacing: 8) {
             TrackLogo(size: 18)
             Text("COACH").font(C.display(19)).foregroundColor(.white)
-            if Prefs.demoMode {
+            if Prefs.demoMode && !Shot.store {
                 Tag(text: "DEMO", fg: C.carbon, bg: C.coral)
             } else if Prefs.isCoach {
                 Tag(text: "TRENER", fg: C.carbon, bg: C.coral)

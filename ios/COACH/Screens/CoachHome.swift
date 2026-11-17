@@ -36,7 +36,7 @@ struct CoachHome: View {
             .background(C.chalk)
             .toolbar {
                 ToolbarItem(placement: .principal) { HeaderTitle() }
-                if store.demo {
+                if store.demo && !Shot.store {
                     ToolbarItem(placement: .navigationBarLeading) { DemoSwitch() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
