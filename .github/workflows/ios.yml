@@ -69,6 +69,8 @@ jobs:
             xcrun simctl io "$DEV" screenshot "shots/$2$1.png"
           }
           for s in $ALL; do shot $s "" ""; done
+          # the demo documents as the app itself wrote them (used to build test data for the shared database)
+          cp -R "$(xcrun simctl get_app_container "$DEV" com.coach.mojaaplikacija data)/Library/Application Support/store" shots/dump || true
           # the same screens in the dark theme ("-dark YES" lands in UserDefaults)
           for s in $ALL; do shot $s "dark/" "-dark YES"; done
           # App Store set: same demo data, no DEMO tag or role switch
