@@ -13,6 +13,7 @@
 <tr><td>Ime, e-mail adresa, lozinka (pohranjena samo kao sažetak/hash), uloga (trener ili sportaš), tim</td><td>Prijava i povezivanje sportaša s trenerom</td></tr>
 <tr><td>Treninzi koje trener sastavlja i rezultati koje sportaš upiše: vremena dionica, serije u teretani (kg, ponavljanja, RPE), stari rekordi upisani ručno</td><td>Glavna funkcija aplikacije: vođenje treninga i praćenje napretka</td></tr>
 <tr><td>Duža trčanja koja sportaš sam upiše: udaljenost i vrijeme (tempo se računa iz njih)</td><td>Praćenje kilometraže i napretka</td></tr>
+<tr><td>Natjecanja: discipline kojima se sportaš bavi i rezultati s natjecanja koje upisuje trener (disciplina, rezultat, datum, naziv natjecanja)</td><td>Ljestvice tima i praćenje sezone</td></tr>
 <tr><td>Dnevnik: sati sna, suplementi (proteini, kreatin, vitamini) i odgovori na jutarnji upitnik o stanju (npr. san, umor, bol)</td><td>Da trener može prilagoditi trening</td></tr>
 </table>
 <p>Podaci o snu i jutarnjem upitniku mogu biti podaci o zdravlju. Njih upisuješ dobrovoljno i u bilo kojem trenutku ih možeš izostaviti ili obrisati.</p>
@@ -24,7 +25,7 @@
 <h2>Tko vidi tvoje podatke</h2>
 <ul>
 <li><b>Ti</b> i <b>trener tvog tima</b>. Drugi timovi i njihovi treneri ne vide tvoje podatke (to osigurava baza podataka pravilima pristupa po timu).</li>
-<li>Rezultate treninga (vremena, kilaže, kilometre i tempo) mogu vidjeti i članovi istog tima na ljestvicama. Komentari, san, suplementi i upitnik ostaju vidljivi samo tebi i treneru.</li>
+<li>Rezultate treninga (vremena, kilaže, kilometre i tempo) i rezultate s natjecanja mogu vidjeti i članovi istog tima na ljestvicama. Komentari, san, suplementi i upitnik ostaju vidljivi samo tebi i treneru.</li>
 <li>Trener može izvesti podatke svog tima u Excel datoteku i sam je podijeliti; za to odgovara trener.</li>
 </ul>
 
@@ -61,11 +62,12 @@
 <li><b>Account:</b> name, email, password (stored only as a hash), role (coach or athlete), team.</li>
 <li><b>Training:</b> workouts created by the coach and results entered by the athlete: split times, gym sets (kg, reps, RPE), manually entered past records.</li>
 <li><b>Longer runs:</b> distance and time typed in by the athlete (pace is calculated from them).</li>
+<li><b>Competitions:</b> the disciplines an athlete competes in and competition results entered by the coach (discipline, result, date, name of the meet).</li>
 <li><b>Daily log:</b> hours of sleep, supplements (protein, creatine, vitamins) and answers to the coach's morning wellness questionnaire. This may be health data; it is entered voluntarily.</li>
 </ul>
 <p>No contacts, photos, microphone, advertising IDs or app usage data. No ads, no analytics, no tracking, no third-party SDKs.</p>
 <h2>Location</h2><p>The app does not request location permission and does not collect the device location.</p>
-<h2>Who can see your data</h2><p>You and the coach of your team, enforced by per-team access rules in the database. Members of the same team may also see training results (times, weights, kilometres and pace) on leaderboards; comments, sleep, supplements and questionnaire answers stay visible only to you and your coach. A coach can export their team's data to an Excel file and is responsible for any sharing of it.</p>
+<h2>Who can see your data</h2><p>You and the coach of your team, enforced by per-team access rules in the database. Members of the same team may also see training results (times, weights, kilometres and pace) and competition results on leaderboards; comments, sleep, supplements and questionnaire answers stay visible only to you and your coach. A coach can export their team's data to an Excel file and is responsible for any sharing of it.</p>
 <h2>Processors</h2>
 <ul><li><b>Supabase Inc.</b>: database hosting and authentication.</li>
 <li><b>Google</b>: Android app distribution via Google Play.</li>
