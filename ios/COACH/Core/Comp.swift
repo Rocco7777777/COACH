@@ -1,10 +1,13 @@
 import Foundation
 
-/// Competition disciplines and results (config/disciplines). The coach writes it, the whole team reads it:
-///   {id: "disciplines",
-///    list:    [{id, name, unit}]             unit "s" = time (lower is better), "m" = metres, "pts" = points
-///    of:      {athleteId: [disciplineId]}    what each athlete competes in
-///    results: [{id, a: athleteId, d: disciplineId, date: "yyyy-MM-dd", v: seconds | metres | points, meet}]}
+/// Competition disciplines and results. The coach sets them up and types the results in.
+///   config/disciplines   = {id: "disciplines",
+///                           list: [{id, name, unit}]           unit "s" = time (lower is better), "m" = metres, "pts" = points
+///                           of:   {athleteId: [disciplineId]}}  what each athlete competes in
+///   results/comp_<athleteId> = {id, athleteId, athleteName, comp: true,
+///                               results: [{id, d: disciplineId, date: "yyyy-MM-dd", v: seconds | metres | points, meet}]}
+/// The results sit with the athlete's other results on purpose: the athlete reads their own, teammates get
+/// them through team_board like training results, and deleting the account deletes them (no SQL change).
 /// Every discipline is a series "comp:<id>", like an exercise: a graph in Napredak and its own leaderboard.
 enum Comp {
     static let doc = "disciplines"
@@ -23,6 +26,12 @@ enum Comp {
     ]
 
     static func key(_ id: String) -> String { "comp:" + id }
+
+    /// The doc with one athlete's competition results.
+    static func resultsId(_ athleteId: String) -> String { "comp_" + athleteId }
+
+    /// The results in such a doc as stored: [{id, d, date, v, meet}].
+    static func rows(_ doc: JSON?) -> [JSON] { (doc?["results"].list ?? []).filter { $0.isObject } }
     static func lower(_ unit: String) -> Bool { unit == time }
 
     static func unitName(_ unit: String) -> String {
@@ -100,7 +109,6 @@ enum Comp {
         var d: JSON = s.doc(Store.config, doc) ?? ["id": .str(doc)]
         if !d["list"].isArray { d["list"] = .array() }
         if !d["of"].isObject { d["of"] = .object() }
-        if !d["results"].isArray { d["results"] = .array() }
         return d
     }
 
@@ -129,24 +137,35 @@ enum Comp {
     @MainActor
     static func does(_ s: Store, _ athleteId: String, _ did: String) -> Bool { ids(s, athleteId).contains(did) }
 
-    /// Results, newest first; nil = any athlete or any discipline.
+    /// Results on this phone, newest first, each with "a" = the athlete; nil = everyone now in the team, or any discipline.
     @MainActor
     static func results(_ s: Store, athlete: String? = nil, discipline: String? = nil) -> [JSON] {
-        let all: [JSON] = s.doc(Store.config, doc)?["results"].list ?? []
+        let who: [String] = athlete.map { [$0] } ?? s.all(Store.athletes).map { $0.string("id") }
         var out: [JSON] = []
-        for r in all where r.isObject {
-            if let a = athlete, r.string("a") != a { continue }
-            if let d = discipline, r.string("d") != d { continue }
-            out.append(r)
+        for aid in who {
+            for r in rows(s.doc(Store.results, resultsId(aid))) {
+                if let d = discipline, r.string("d") != d { continue }
+                var x = r
+                x["a"] = .str(aid)
+                out.append(x)
+            }
         }
-        return out.sorted { $0.string("date") > $1.string("date") }
+        return out.sorted { a, b in
+            a.string("date") != b.string("date") ? a.string("date") > b.string("date") : a.string("id") > b.string("id")
+        }
     }
 
     /// One series per discipline the athlete has a result in.
     @MainActor
     static func series(_ s: Store, _ athleteId: String) -> [Progress.Series] {
+        series(s, doc: s.doc(Store.results, resultsId(athleteId)))
+    }
+
+    /// The same from the athlete's results doc itself: a teammate's comes from team_board, not from the store.
+    @MainActor
+    static func series(_ s: Store, doc: JSON?) -> [Progress.Series] {
         var out: [Progress.Series] = []
-        let mine = results(s, athlete: athleteId)
+        let mine = rows(doc)
         if mine.isEmpty { return out }
         for d in all(s) {
             let did = d.string("id")
@@ -248,9 +267,16 @@ enum Comp {
     /// Removes the discipline with its results and takes it off every athlete.
     @MainActor
     static func delete(_ s: Store, _ id: String) {
+        for at in s.all(Store.athletes) {
+            guard var doc = s.doc(Store.results, resultsId(at.string("id"))) else { continue }
+            let before = rows(doc)
+            let keep = before.filter { $0.string("d") != id }
+            if keep.count == before.count { continue }
+            doc["results"] = .arr(keep)
+            s.put(Store.results, doc)
+        }
         var d = root(s)
         d["list"] = .arr(d["list"].list.filter { $0.string("id") != id })
-        d["results"] = .arr(d["results"].list.filter { $0.string("d") != id })
         var of = JSON.object()
         for (a, v) in d["of"].dict {
             let keep = v.list.filter { $0.asString != id }
@@ -275,25 +301,21 @@ enum Comp {
     /// Adds a result; the athlete gets the discipline if they didn't have it.
     @MainActor
     static func addResult(_ s: Store, _ athleteId: String, _ did: String, _ date: String, _ v: Double, _ meet: String) {
-        var d = root(s)
-        var list = d["results"].list
-        list.append(["id": .str("r" + Fmt.id()), "a": .str(athleteId), "d": .str(did), "date": .str(date),
+        let id = resultsId(athleteId)
+        var doc: JSON = s.doc(Store.results, id) ?? ["id": .str(id), "athleteId": .str(athleteId), "comp": true]
+        doc["athleteName"] = .str(athleteName(s, athleteId))
+        var list = rows(doc)
+        list.append(["id": .str("r" + Fmt.id()), "d": .str(did), "date": .str(date),
                      "v": .num((v * 100).rounded() / 100), "meet": .str(meet.trimmingCharacters(in: .whitespaces))])
-        d["results"] = .arr(list)
-        var of = d["of"]
-        var mine = of[athleteId].list
-        if !mine.contains(where: { $0.asString == did }) {
-            mine.append(.str(did))
-            of[athleteId] = .arr(mine)
-            d["of"] = of
-        }
-        s.put(Store.config, d)
+        doc["results"] = .arr(list)
+        s.put(Store.results, doc)
+        if !does(s, athleteId, did) { assign(s, athleteId, did, true) }
     }
 
     @MainActor
-    static func deleteResult(_ s: Store, _ rid: String) {
-        var d = root(s)
-        d["results"] = .arr(d["results"].list.filter { $0.string("id") != rid })
-        s.put(Store.config, d)
+    static func deleteResult(_ s: Store, _ athleteId: String, _ rid: String) {
+        guard var doc = s.doc(Store.results, resultsId(athleteId)) else { return }
+        doc["results"] = .arr(rows(doc).filter { $0.string("id") != rid })
+        s.put(Store.results, doc)
     }
 }

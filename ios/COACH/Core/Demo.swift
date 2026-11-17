@@ -218,7 +218,8 @@ enum Demo {
         let today = Fmt.today()
         let year = Comp.thisYear()
         var of = JSON.object()
-        var results: [JSON] = []
+        var results: [String: [JSON]] = [:]
+        var n = 0
         for (ai, did, best) in who {
             let aid = team[ai].0
             var mine = of[aid].list
@@ -235,13 +236,18 @@ enum Demo {
                     let slower: Double = best * (1 + age + noise)
                     let shorter: Double = best * (1 - age * 1.4 - noise * 1.6)
                     let v: Double = time ? slower : shorter
-                    results.append(["id": .str("r\(results.count)"), "a": .str(aid), "d": .str(did), "date": .str(iso),
-                                    "v": .num((v * 100).rounded() / 100), "meet": .str(meet.2)])
+                    n += 1
+                    results[aid, default: []].append(["id": .str("r\(n)"), "d": .str(did), "date": .str(iso),
+                                                      "v": .num((v * 100).rounded() / 100), "meet": .str(meet.2)])
                 }
             }
         }
         let ds: [JSON] = list.map { ["id": .str($0.0), "name": .str($0.1), "unit": .str($0.2)] }
-        s.seedPut(Store.config, ["id": .str(Comp.doc), "list": .arr(ds), "of": of, "results": .arr(results)])
+        s.seedPut(Store.config, ["id": .str(Comp.doc), "list": .arr(ds), "of": of])
+        for t in team {
+            s.seedPut(Store.results, ["id": .str(Comp.resultsId(t.0)), "athleteId": .str(t.0), "athleteName": .str(t.1), "comp": true,
+                                      "results": .arr(results[t.0] ?? [])])
+        }
         // the coach left the small accessory lifts and the odd distances without a leaderboard
         let on: [String] = [
             Progress.gymKey("Čučanj"), Progress.gymKey("Mrtvo dizanje"), Progress.gymKey("Bench press"),

@@ -186,9 +186,14 @@ enum Progress {
         var latestName: [String: String] = [:]
         var latestDate: [String: String] = [:]
         var recs: [JSON] = []
+        var compDoc: JSON? = nil
         for r in results {
             if r.string("id") == historyId(athleteId) {
                 recs.append(contentsOf: r["records"].list.filter { $0.isObject })
+                continue
+            }
+            if r.string("id") == Comp.resultsId(athleteId) {
+                compDoc = r
                 continue
             }
             guard let ses = store.doc(Store.sessions, r.string("sessionId")), ses["items"].isArray else { continue }
@@ -221,7 +226,7 @@ enum Progress {
         for (k, n) in latestName { if let s = all[k], s.kind == gym { s.name = n } }
         var list = Array(all.values)
         for s in list { s.pts.sort { $0.day < $1.day } }
-        list.append(contentsOf: Comp.series(store, athleteId))
+        list.append(contentsOf: Comp.series(store, doc: compDoc))
         list.sort(by: order)
         return list.filter { !$0.pts.isEmpty }
     }

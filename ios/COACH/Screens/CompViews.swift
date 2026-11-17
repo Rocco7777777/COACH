@@ -237,7 +237,7 @@ struct CompsView: View {
                 Text("Brišu se i svi njezini rezultati, ljestvica i graf. To se ne može vratiti.")
             }
             .alert("Obrisati rezultat?", isPresented: removeShown, presenting: removing) { r in
-                Button("Obriši", role: .destructive) { Comp.deleteResult(store, r.string("id")) }
+                Button("Obriši", role: .destructive) { Comp.deleteResult(store, r.string("a"), r.string("id")) }
                 Button("Odustani", role: .cancel) {}
             }
     }
@@ -608,7 +608,7 @@ struct CompSection: View {
             .sheet(item: $result) { t in CompResultSheet(target: t) { result = nil } }
             .sheet(isPresented: $adding) { NewDisciplineSheet(assignTo: athleteId) { adding = false } }
             .alert("Obrisati rezultat?", isPresented: removeShown, presenting: removing) { r in
-                Button("Obriši", role: .destructive) { Comp.deleteResult(store, r.string("id")) }
+                Button("Obriši", role: .destructive) { Comp.deleteResult(store, r.string("a"), r.string("id")) }
                 Button("Odustani", role: .cancel) {}
             }
     }
