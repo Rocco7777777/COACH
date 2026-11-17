@@ -15,6 +15,8 @@ enum Progress {
         var day: Int = 0
         var v: Double = 0, top: Double = 0
         var set = "", topSet = ""
+        /// comp only: the meet the result is from.
+        var note = ""
         var manual = false, month = false
         var tr: Double = 0
         var pr = false

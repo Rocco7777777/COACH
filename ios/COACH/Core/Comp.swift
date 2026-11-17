@@ -188,6 +188,7 @@ enum Comp {
                 let meet = r.string("meet").trimmingCharacters(in: .whitespaces)
                 p.set = text(unit, v) + (meet.isEmpty ? "" : "  ·  " + meet)
                 p.topSet = p.set
+                p.note = meet
                 // two results on one day: the better one stays
                 if let i = ser.pts.firstIndex(where: { $0.day == day }) {
                     if ser.better(v, ser.pts[i].v) { ser.pts[i] = p }
@@ -240,6 +241,20 @@ enum Comp {
 
     // MARK: writes (coach)
 
+    /// Saves the disciplines doc. Whoever left the team or deleted their account is taken out of "of" on the way,
+    /// so nothing about them stays behind; skipped while the team list isn't on the phone yet.
+    @MainActor
+    private static func save(_ s: Store, _ doc: JSON) {
+        var d = doc
+        let team: Set<String> = Set(s.all(Store.athletes).map { $0.string("id") })
+        if !team.isEmpty {
+            var of = JSON.object()
+            for (a, v) in d["of"].dict where team.contains(a) { of[a] = v }
+            d["of"] = of
+        }
+        s.put(Store.config, d)
+    }
+
     /// New discipline; returns its id. The same name twice gives the one that exists.
     @MainActor
     @discardableResult
@@ -251,7 +266,7 @@ enum Comp {
         var list = d["list"].list
         list.append(["id": .str(id), "name": .str(n), "unit": .str(unit)])
         d["list"] = .arr(list)
-        s.put(Store.config, d)
+        save(s, d)
         return id
     }
 
@@ -261,7 +276,7 @@ enum Comp {
         var list = d["list"].list
         for i in list.indices where list[i].string("id") == id { list[i]["name"] = .str(name.trimmingCharacters(in: .whitespaces)) }
         d["list"] = .arr(list)
-        s.put(Store.config, d)
+        save(s, d)
     }
 
     /// Removes the discipline with its results and takes it off every athlete.
@@ -283,7 +298,7 @@ enum Comp {
             if !keep.isEmpty { of[a] = .arr(keep) }
         }
         d["of"] = of
-        s.put(Store.config, d)
+        save(s, d)
     }
 
     /// The athlete competes in the discipline (on) or not any more; their results stay either way.
@@ -295,7 +310,7 @@ enum Comp {
         if on { mine.append(.str(did)) }
         if mine.isEmpty { of.remove(athleteId) } else { of[athleteId] = .arr(mine) }
         d["of"] = of
-        s.put(Store.config, d)
+        save(s, d)
     }
 
     /// Adds a result; the athlete gets the discipline if they didn't have it.

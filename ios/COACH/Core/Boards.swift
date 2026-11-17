@@ -3,6 +3,7 @@ import Foundation
 /// Team leaderboards (Boards.java): one board per exercise or distance, built from the same series as Napredak.
 ///   Napredak: trend now against the trend a year earlier (or the first result), in %.
 ///   Najbolji rezultat: best result in the last 12 months (gym = estimated 1RM).
+///   A competition discipline ranks by the personal best in both, so one typed-in record per athlete makes a board.
 /// The arrow is the change of place against the same board 7 days ago, only for whoever trained it in those 7 days.
 @MainActor
 enum Boards {
@@ -98,12 +99,13 @@ enum Boards {
             r.me = r.id == me
             rows.append(r)
         }
+        let comp: Bool = kind.kind == Progress.comp
         rows.sort { a, b in
-            if prog { return a.value > b.value }
+            if prog && !comp { return a.value > b.value }
             return kind.lower ? a.value < b.value : a.value > b.value
         }
         for i in rows.indices { rows[i].place = i + 1 }
-        if !prog && kind.kind != Progress.gym && rows.count > 1 {
+        if !prog && !comp && kind.kind != Progress.gym && rows.count > 1 {
             let lead = rows[0].value
             for i in rows.indices {
                 rows[i].sub = i == 0 ? gap(kind, rows[1].value - rows[i].value) + " ispred" : "+" + gap(kind, rows[i].value - lead)
@@ -115,6 +117,15 @@ enum Boards {
     static func score(_ s: Progress.Series, _ asOf: Int, _ prog: Bool) -> Row? {
         var pts = s.pts.filter { $0.v > 0 && $0.day <= asOf }
         var r = Row()
+        if s.kind == Progress.comp {
+            // a discipline ranks by the personal best in both views: one result is enough, however old it is
+            var pb: Progress.Pt? = nil
+            for p in pts { if pb == nil || s.better(p.v, pb!.v) { pb = p } }
+            guard let b = pb else { return nil }
+            r.value = b.v
+            r.sub = Progress.date(b.day) + (b.note.isEmpty ? "" : "  ·  " + b.note)
+            return r
+        }
         if prog {
             if pts.count < 2 { return nil }
             Progress.trend(&pts)
@@ -136,8 +147,8 @@ enum Boards {
     }
 
     static func value(_ b: Board, _ r: Row, _ prog: Bool) -> String {
-        if prog { return pct(r.value) }
         if b.series.kind == Progress.comp { return Comp.text(b.series.cunit, r.value) }
+        if prog { return pct(r.value) }
         return b.series.fmt(r.value) + unit(b.series)
     }
 
@@ -153,7 +164,6 @@ enum Boards {
 
     private static func gap(_ s: Progress.Series, _ d: Double) -> String {
         if s.kind == Progress.gps { return Fmt.clock(abs(d)) + "/km" }
-        if s.kind == Progress.comp { return Comp.text(s.cunit, abs(d)) }
         return Progress.sec(abs(d)) + " s"
     }
 }

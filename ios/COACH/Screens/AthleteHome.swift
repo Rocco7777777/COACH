@@ -81,7 +81,7 @@ struct AthleteHome: View {
         switch s {
         case "journal": tab = 1
         case "progress": tab = 2
-        case "board": tab = 3
+        case "board", "podium": tab = 3
         case "wellness": wellness = true
         case "settings": path.append(Route.settings)
         case "session", "gym", "run":

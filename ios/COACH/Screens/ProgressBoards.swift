@@ -181,6 +181,13 @@ struct SeriesView: View {
         .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .onAppear { widen(s) }
+    }
+
+    /// Nothing in the last year (an old record typed in, an exercise dropped long ago): open on everything.
+    private func widen(_ s: Progress.Series?) {
+        guard let s = s, range == Progress.r1g, !s.pts.isEmpty else { return }
+        if Progress.view(s, Progress.r1g, top: false).isEmpty { range = Progress.rAll }
     }
 
     // Small pieces: Xcode 26's type checker times out on one big body.
@@ -297,6 +304,7 @@ struct SeriesView: View {
             }
         }
         .chartYScale(domain: (lo - pad)...(hi + pad))
+        .chartXScale(range: .plotDimension(startPadding: 0, endPadding: 30))
         .chartYAxis {
             AxisMarks(position: .leading) { v in
                 AxisGridLine().foregroundStyle(C.stone)
@@ -331,6 +339,7 @@ struct BoardTab: View {
         let mine = boards.compactMap { $0.mine }
         let coach = Prefs.isCoach
         let gname = Groups.name(store, coach ? Groups.selected(store) : Groups.of(store, Prefs.athleteId))
+        let hasComp: Bool = boards.contains { $0.series.kind == Progress.comp }
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
@@ -373,10 +382,7 @@ struct BoardTab: View {
                 } else if let e = error, boards.isEmpty {
                     Text(e).font(C.bold(14)).foregroundColor(C.red).padding(.top, 12)
                 } else if boards.isEmpty {
-                    EmptyCard(title: "Još nema ljestvica", text: prog
-                              ? "Ljestvica se pojavi kad barem dvoje iz tima ima po dva upisa iste vježbe ili dionice."
-                              : "Ljestvica se pojavi kad barem dvoje iz tima upiše istu vježbu ili dionicu.")
-                        .padding(.top, 8)
+                    EmptyCard(title: "Još nema ljestvica", text: emptyText(coach)).padding(.top, 8)
                 } else {
                     ForEach(Array(boards.enumerated()), id: \.offset) { i, b in
                         if i == 0 || boards[i - 1].series.group != b.series.group {
@@ -384,19 +390,26 @@ struct BoardTab: View {
                         }
                         Button { open = BoardId(id: b.key) } label: { BoardRow(board: b, prog: prog) }.buttonStyle(.plain)
                     }
-                    Text(footnote(coach)).font(C.text(12)).foregroundColor(C.muted).padding(.top, 10)
+                    Text(footnote(coach, hasComp)).font(C.text(12)).foregroundColor(C.muted).padding(.top, 10)
                 }
             }
             .padding(16)
         }
         .refreshable { await load(force: true) }
         .task { await load(force: false) }
+        .onAppear { shotPodium() }
         .sheet(item: $open) { o in
             if let b = boards.first(where: { $0.key == o.id }) {
                 BoardDetail(board: b, prog: prog)
                     .presentationDetents([.medium, .large])
             }
         }
+    }
+
+    /// Screenshot mode "podium": the first board opens by itself.
+    private func shotPodium() {
+        guard Shot.name == "podium", open == nil else { return }
+        if let b = Boards.forTeam(store, prog: prog).first { open = BoardId(id: b.key) }
     }
 
     /// Coach: "which exercises have a board" with a way in to change it.
@@ -415,10 +428,25 @@ struct BoardTab: View {
         .buttonStyle(.plain)
     }
 
-    private func footnote(_ coach: Bool) -> String {
+    private func emptyText(_ coach: Bool) -> String {
+        if BoardPick.custom(store) {
+            return coach
+                ? "Vježbe koje si uključio još nemaju dovoljno upisa. Druge uključiš preko ODABERI VJEŽBE."
+                : "Koje vježbe imaju ljestvicu bira trener. Za uključene još nema dovoljno upisa."
+        }
+        return prog
+            ? "Ljestvica se pojavi kad barem dvoje iz tima ima po dva upisa iste vježbe ili dionice."
+            : "Ljestvica se pojavi kad barem dvoje iz tima upiše istu vježbu ili dionicu."
+    }
+
+    private func footnote(_ coach: Bool, _ comps: Bool) -> String {
         var t: String = prog
-            ? "Napredak: koliko si bolji nego prije 12 mjeseci (ili od prvog upisa), u postocima. Strelica: pomak na ljestvici u zadnjih 7 dana, ako si taj tjedan radio tu disciplinu."
-            : "Najbolji rezultat u zadnjih 12 mjeseci. Teretana: procijenjeni 1RM. Strelica: pomak na ljestvici u zadnjih 7 dana."
+            ? "Napredak: koliko si bolji nego prije 12 mjeseci (ili od prvog upisa), u postocima."
+            : "Najbolji rezultat u zadnjih 12 mjeseci. Teretana: procijenjeni 1RM."
+        if comps { t += " Natjecanja: poredak po osobnom rekordu, u oba prikaza." }
+        t += prog
+            ? " Strelica: pomak na ljestvici u zadnjih 7 dana, ako si taj tjedan radio tu disciplinu."
+            : " Strelica: pomak na ljestvici u zadnjih 7 dana."
         if !coach && BoardPick.custom(store) { t += " Koje vježbe imaju ljestvicu bira trener." }
         return t
     }
@@ -494,7 +522,7 @@ struct BoardDetail: View {
             VStack(alignment: .leading, spacing: 12) {
                 Label12(board.series.group)
                 Text(board.name.uppercased()).font(C.display(22)).foregroundColor(C.ink)
-                Text(prog ? "Napredak u zadnjih 12 mjeseci" : "Najbolji rezultat u zadnjih 12 mjeseci").font(C.text(13)).foregroundColor(C.muted)
+                Text(subtitle).font(C.text(13)).foregroundColor(C.muted)
                 HStack(alignment: .bottom, spacing: 8) {
                     podium(1, height: 70)
                     podium(0, height: 100)
@@ -518,6 +546,11 @@ struct BoardDetail: View {
             .padding(20)
         }
         .background(C.chalk)
+    }
+
+    private var subtitle: String {
+        if board.series.kind == Progress.comp { return "Osobni rekordi s natjecanja" }
+        return prog ? "Napredak u zadnjih 12 mjeseci" : "Najbolji rezultat u zadnjih 12 mjeseci"
     }
 
     @ViewBuilder private func podium(_ i: Int, height: CGFloat) -> some View {

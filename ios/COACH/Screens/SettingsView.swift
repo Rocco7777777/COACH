@@ -54,7 +54,7 @@ struct SettingsView: View {
         } message: {
             Text(Prefs.isCoach
                  ? "Briše se tvoj račun. Ako u timu ima sportaša, tim i treninzi ostaju njima, ali ih više nitko neće moći mijenjati. Prazan tim briše se sa svim treninzima.\n\nOvo se ne može vratiti."
-                 : "Brišu se tvoj račun, svi tvoji rezultati, stari rekordi, trčanja i dnevnik.\n\nOvo se ne može vratiti.")
+                 : "Brišu se tvoj račun, svi tvoji rezultati s treninga i natjecanja, stari rekordi, trčanja i dnevnik.\n\nOvo se ne može vratiti.")
         }
         .alert("Nije sve poslano", isPresented: Binding(get: { nav.unsent > 0 }, set: { if !$0 { nav.unsent = 0 } })) {
             Button("Ostani prijavljen", role: .cancel) { nav.unsent = 0 }

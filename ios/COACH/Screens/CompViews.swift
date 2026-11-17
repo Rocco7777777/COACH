@@ -148,11 +148,14 @@ struct CompsView: View {
     }
 
     private func summary(_ did: String, _ unit: String) -> String {
-        let n: Int = Comp.results(store, discipline: did).count
+        let all: [JSON] = Comp.results(store, discipline: did)
+        let n: Int = all.count
         guard let b = Comp.top(store, did) else { return "Još nema rezultata." }
         let name: String = Fmt.shortName(Comp.athleteName(store, b.string("a")))
         let word: String = n % 10 == 1 && n % 100 != 11 ? "rezultat" : "rezultata"
-        return "Najbolje: " + name + " " + Comp.text(unit, b.double("v")) + "  ·  \(n) " + word
+        let people: Int = Set(all.map { $0.string("a") }).count
+        let alone: String = people < 2 ? "  ·  za ljestvicu treba rezultat još jednog sportaša" : ""
+        return "Najbolje: " + name + " " + Comp.text(unit, b.double("v")) + "  ·  \(n) " + word + alone
     }
 
     @ViewBuilder
@@ -288,6 +291,7 @@ struct NewDisciplineSheet: View {
     @ObservedObject var store = Store.shared
     @State private var name = ""
     @State private var unit = Comp.time
+    @State private var error = ""
 
     var body: some View {
         NavigationStack {
@@ -301,6 +305,7 @@ struct NewDisciplineSheet: View {
                     Label12("Što se mjeri").padding(.top, 4)
                     units
                     Text(hint).font(C.text(12)).foregroundColor(C.muted)
+                    if !error.isEmpty { Text(error).font(C.bold(13)).foregroundColor(C.red) }
                     PillButton(title: "Dodaj disciplinu") { save() }.padding(.top, 8)
                 }
                 .padding(16)
@@ -344,7 +349,7 @@ struct NewDisciplineSheet: View {
 
     private func save() {
         let n = name.trimmingCharacters(in: .whitespaces)
-        if n.isEmpty { return }
+        if n.isEmpty { error = "Upiši naziv ili dodirni jednu od čestih disciplina."; return }
         let id: String = Comp.add(store, n, unit)
         if !assignTo.isEmpty { Comp.assign(store, assignTo, id, true) }
         close()
