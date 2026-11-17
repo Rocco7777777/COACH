@@ -12,17 +12,14 @@ struct AthleteDetailView: View {
 
     var body: some View {
         let at = store.doc(Store.athletes, athleteId)
-        let season = Model.season(store, athleteId)
-        let series = Progress.build(store, athleteId)
+        // competitions have their own section above; here the exercises
+        let series: [Progress.Series] = Progress.build(store, athleteId).filter { $0.kind != Progress.comp }
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    StatTile(value: Fmt.n((season.km * 10).rounded() / 10), label: "km", bg: C.carbon, fg: .white)
-                    StatTile(value: Fmt.n2((season.kg / 10).rounded() / 100), label: "tona", bg: C.coral, fg: C.carbon)
-                    StatTile(value: "\(Int(season.n))", label: "treninga", bg: C.white, fg: C.carbon)
-                }
+                tiles
                 attendance
-                Text("NAPREDAK PO VJEŽBI").font(C.display(15)).foregroundColor(C.carbon).padding(.top, 12)
+                CompSection(athleteId: athleteId, path: $path)
+                Text("NAPREDAK PO VJEŽBI").font(C.display(15)).foregroundColor(C.ink).padding(.top, 12)
                 if series.isEmpty {
                     EmptyCard(title: "Još nema grafova", text: "Graf se pojavi čim upiše prvu vježbu ili dionicu.")
                 }
@@ -31,7 +28,7 @@ struct AthleteDetailView: View {
                     Button { path.append(CoachRoute.series(athleteId, s.key)) } label: { SeriesRow(series: s) }.buttonStyle(.plain)
                 }
                 runs
-                Text("ZADNJA 2 TJEDNA").font(C.display(15)).foregroundColor(C.carbon).padding(.top, 14)
+                Text("ZADNJA 2 TJEDNA").font(C.display(15)).foregroundColor(C.ink).padding(.top, 14)
                 ForEach(0..<14, id: \.self) { i in DayCard(athleteId: athleteId, day: Fmt.addDays(Date(), -i)) }
                 GhostButton(title: "Preimenuj") {
                     newName = at?.string("name") ?? ""
@@ -44,13 +41,22 @@ struct AthleteDetailView: View {
         .background(C.chalk)
         .navigationTitle(at?.string("name") ?? "Sportaš")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .alert("Preimenuj", isPresented: $renaming) {
             TextField("Ime i prezime", text: $newName).textInputAutocapitalization(.words)
             Button("Spremi") { rename() }
             Button("Odustani", role: .cancel) {}
+        }
+    }
+
+    private var tiles: some View {
+        let season = Model.season(store, athleteId)
+        return HStack(spacing: 8) {
+            StatTile(value: Fmt.n((season.km * 10).rounded() / 10), label: "km", bg: C.carbon, fg: .white)
+            StatTile(value: Fmt.n2((season.kg / 10).rounded() / 100), label: "tona", bg: C.coral, fg: C.night)
+            StatTile(value: "\(Int(season.n))", label: "treninga", bg: C.card, fg: C.ink)
         }
     }
 
@@ -85,7 +91,7 @@ struct AthleteDetailView: View {
     @ViewBuilder private var runs: some View {
         let list = latestRuns(6)
         if !list.isEmpty {
-            Text("TRČANJA").font(C.display(15)).foregroundColor(C.carbon).padding(.top, 14)
+            Text("TRČANJA").font(C.display(15)).foregroundColor(C.ink).padding(.top, 14)
             Card {
                 ForEach(list.indices, id: \.self) { i in
                     let ses = list[i].0, it = list[i].1, run = list[i].2
@@ -135,16 +141,16 @@ struct DayCard: View {
         let w = d?.bool("wellnessDone") ?? false
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text((Fmt.dayShort(day) + " " + Fmt.dm(day)).uppercased()).font(C.display(14)).foregroundColor(C.carbon)
+                Text((Fmt.dayShort(day) + " " + Fmt.dm(day)).uppercased()).font(C.display(14)).foregroundColor(C.ink)
                 Spacer()
-                Tag(text: w ? "Upitnik ✓" : "Upitnik –", fg: w ? .white : C.carbon, bg: w ? C.green : C.chalk)
+                Tag(text: w ? "Upitnik ✓" : "Upitnik –", fg: w ? .white : C.ink, bg: w ? C.green : C.chalk)
             }
             if let d = d {
                 Text(line(d)).font(C.text(13)).foregroundColor(C.muted)
                 if w {
                     let f = CoachText.flags(d)
                     if !f.isEmpty { Text(f).font(C.bold(13)).foregroundColor(C.red).padding(.top, 2) }
-                    Text(JournalTab.summary(d)).font(C.text(13)).foregroundColor(C.carbon).padding(.top, 2)
+                    Text(JournalTab.summary(d)).font(C.text(13)).foregroundColor(C.ink).padding(.top, 2)
                 }
             } else {
                 Text("Ništa upisano").font(C.text(13)).foregroundColor(Color(hex: 0x9CA1A5))
@@ -152,7 +158,7 @@ struct DayCard: View {
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14).fill(C.white))
+        .background(RoundedRectangle(cornerRadius: 14).fill(C.card))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(C.stone, lineWidth: 1))
     }
 
@@ -181,13 +187,13 @@ struct TeamView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 hero
-                Text("U TIMU (\(all.count))").font(C.display(15)).foregroundColor(C.carbon).padding(.top, 8)
+                Text("U TIMU (\(all.count))").font(C.display(15)).foregroundColor(C.ink).padding(.top, 8)
                 Card {
                     if all.isEmpty { Text("Još nitko. Pošalji poziv gore.").font(C.text(14)).foregroundColor(C.muted) }
                     ForEach(all.indices, id: \.self) { i in
                         if i > 0 { Rectangle().fill(C.stone).frame(height: 1).padding(.vertical, 6) }
                         HStack {
-                            Text(all[i].string("name")).font(C.bold(15)).foregroundColor(C.carbon)
+                            Text(all[i].string("name")).font(C.bold(15)).foregroundColor(C.ink)
                             Spacer()
                             Button { if store.demo { Toast.shared.show("U demo verziji nitko ne izlazi iz tima.") } else { removing = all[i] } } label: {
                                 Text("Makni").font(C.text(13)).foregroundColor(C.muted).padding(.vertical, 8).padding(.leading, 10)
@@ -202,7 +208,7 @@ struct TeamView: View {
         .background(C.chalk)
         .navigationTitle("Tim")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .alert("Ime tima", isPresented: $renaming) {
@@ -241,7 +247,7 @@ struct TeamView: View {
             Text("Sportaš ga upiše kod registracije (Novi račun, Sportaš) i odmah je u tvom timu.")
                 .font(C.text(13)).foregroundColor(C.mutedLight).padding(.top, 6)
             ShareLink(item: Team.inviteText) {
-                Text("POŠALJI POZIV").font(C.display(16)).foregroundColor(C.carbon)
+                Text("POŠALJI POZIV").font(C.display(16)).foregroundColor(C.night)
                     .frame(maxWidth: .infinity, minHeight: 52)
                     .background(Capsule().fill(C.coral))
             }
@@ -330,7 +336,7 @@ struct GroupsView: View {
         .background(C.chalk)
         .navigationTitle("Grupe")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
     }
@@ -340,7 +346,7 @@ struct GroupsView: View {
         heading("Novi, bez grupe", "\(free.count)").padding(.top, 10)
         ForEach(free, id: \.idKey) { at in
             Card {
-                Text(at.string("name")).font(C.bold(16)).foregroundColor(C.carbon)
+                Text(at.string("name")).font(C.bold(16)).foregroundColor(C.ink)
                 Text("Gdje trenira? Dok nije u grupi, vidi treninge svih grupa.").font(C.text(13)).foregroundColor(C.muted)
                 FlowLayout(spacing: 6) {
                     ForEach(groups, id: \.idKey) { g in
@@ -428,7 +434,7 @@ struct GroupsView: View {
 
     private func heading(_ left: String, _ right: String) -> some View {
         HStack(alignment: .lastTextBaseline) {
-            Text(left.uppercased()).font(C.display(15)).foregroundColor(C.carbon)
+            Text(left.uppercased()).font(C.display(15)).foregroundColor(C.ink)
             Spacer()
             Text(right).font(C.bold(13)).foregroundColor(C.muted)
         }
@@ -447,7 +453,7 @@ struct GroupsView: View {
                             Button { moving = at } label: {
                                 HStack(spacing: 7) {
                                     Initials(name: at.string("name"), size: 30)
-                                    Text(Fmt.shortName(at.string("name"))).font(C.bold(14)).foregroundColor(C.carbon)
+                                    Text(Fmt.shortName(at.string("name"))).font(C.bold(14)).foregroundColor(C.ink)
                                 }
                                 .padding(.leading, 4).padding(.trailing, 12).padding(.vertical, 4)
                                 .background(Capsule().fill(C.chalk))
@@ -515,7 +521,7 @@ struct AttendanceView: View {
                         EmptyCard(title: "Nema sportaša", text: gid.isEmpty ? "Pozovi ih kodom tima." : "U ovoj grupi još nema nikoga.").padding(.top, 4)
                     }
                     ForEach(everyone.indices, id: \.self) { i in
-                        if i == team.count { Text("BEZ GRUPE").font(C.display(15)).foregroundColor(C.carbon).padding(.top, 10) }
+                        if i == team.count { Text("BEZ GRUPE").font(C.display(15)).foregroundColor(C.ink).padding(.top, 10) }
                         row(everyone[i], ts[i])
                     }
                 }
@@ -525,7 +531,7 @@ struct AttendanceView: View {
         .background(C.chalk)
         .navigationTitle("Dolasci")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
     }
@@ -534,7 +540,7 @@ struct AttendanceView: View {
         Button { path.append(CoachRoute.athlete(at.string("id"))) } label: {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Text(at.string("name")).font(C.bold(15)).foregroundColor(C.carbon)
+                    Text(at.string("name")).font(C.bold(15)).foregroundColor(C.ink)
                     Spacer()
                     if t.pct >= 0 {
                         Text("\(t.yes) / \(t.total)   ").font(C.text(13)).foregroundColor(C.muted)
@@ -546,7 +552,7 @@ struct AttendanceView: View {
                 if t.total > 0 { AttendanceDots(tally: t) }
             }
             .padding(.horizontal, 12).padding(.vertical, 10)
-            .background(RoundedRectangle(cornerRadius: 14).fill(C.white))
+            .background(RoundedRectangle(cornerRadius: 14).fill(C.card))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(C.stone, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -611,7 +617,7 @@ struct QuestionnaireEditView: View {
                 }
             }
         }
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .confirmationDialog("Spremiti upitnik?", isPresented: $askLeave, titleVisibility: .visible) {
@@ -660,7 +666,7 @@ struct QuestionnaireEditView: View {
         let qid = item.string("id")
         return Card {
             HStack(spacing: 6) {
-                Text("PITANJE \(i + 1)").font(C.display(15)).foregroundColor(C.carbon)
+                Text("PITANJE \(i + 1)").font(C.display(15)).foregroundColor(C.ink)
                 Spacer()
                 roundButton("arrow.up", bg: C.chalk, size: 36) { move(i, -1) }
                 roundButton("arrow.down", bg: C.chalk, size: 36) { move(i, 1) }

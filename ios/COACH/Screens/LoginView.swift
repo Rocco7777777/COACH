@@ -13,22 +13,35 @@ struct LoginView: View {
     @State private var error: String?
 
     var body: some View {
+        VStack(spacing: 0) {
+            hero
+            form
+        }
+        .background(C.chalk)
+    }
+
+    /// Dark from the very top, like the header of every other screen (the clock and battery are drawn white).
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 14) {
+                TrackLogo(size: 44)
+                Text("COACH").font(C.display(40)).foregroundColor(.white)
+            }
+            Text("Treninzi, prolazi, kilaže, san i suplementi. Sportaši i trener u istoj aplikaciji.")
+                .font(C.text(15)).foregroundColor(C.mutedLight).padding(.top, 14)
+        }
+        .padding(.horizontal, 22).padding(.top, 16).padding(.bottom, 22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(C.header, ignoresSafeAreaEdges: .top)
+    }
+
+    private var form: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Card(padding: 22, background: C.carbon, border: nil) {
-                    HStack(spacing: 14) {
-                        TrackLogo(size: 44)
-                        Text("COACH").font(C.display(40)).foregroundColor(.white)
-                    }
-                    Text("Treninzi, prolazi, kilaže, san i suplementi. Sportaši i trener u istoj aplikaciji.")
-                        .font(C.text(15)).foregroundColor(C.mutedLight).padding(.top, 14)
-                }
-
                 HStack(spacing: 8) {
                     Chip(title: "Prijava", on: !register) { register = false; error = nil }
                     Chip(title: "Novi račun", on: register) { register = true; error = nil }
                 }
-                .padding(.top, 24)
 
                 VStack(alignment: .leading, spacing: 12) {
                     if register {
@@ -86,10 +99,9 @@ struct LoginView: View {
                     .font(C.text(12)).foregroundColor(C.muted).padding(.top, 6)
                 PrivacyLink().padding(.top, 10)
             }
-            .padding(.horizontal, 20).padding(.top, 28).padding(.bottom, 32)
+            .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 32)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(C.chalk)
     }
 
     private func submit() {
@@ -156,19 +168,32 @@ struct JoinView: View {
     @State private var error: String? = Store.shared.teamError
 
     var body: some View {
+        VStack(spacing: 0) {
+            hero
+            form
+        }
+        .background(C.chalk)
+    }
+
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("BOK, \(Fmt.firstName(Prefs.name).uppercased())").font(C.display(26)).foregroundColor(.white)
+            Text(coach ? "Otvori svoj tim. Dobit ćeš kod koji šalješ sportašima."
+                 : "Još nisi u timu. Upiši kod tima i odmah vidiš treninge svog trenera.")
+                .font(C.text(15)).foregroundColor(C.mutedLight).padding(.top, 10)
+        }
+        .padding(.horizontal, 22).padding(.top, 16).padding(.bottom, 22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(C.header, ignoresSafeAreaEdges: .top)
+    }
+
+    private var form: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Card(padding: 22, background: C.carbon, border: nil) {
-                    Text("BOK, \(Fmt.firstName(Prefs.name).uppercased())").font(C.display(26)).foregroundColor(.white)
-                    Text(coach ? "Otvori svoj tim. Dobit ćeš kod koji šalješ sportašima."
-                         : "Još nisi u timu. Upiši kod tima i odmah vidiš treninge svog trenera.")
-                        .font(C.text(15)).foregroundColor(C.mutedLight).padding(.top, 10)
-                }
                 if coach {
                     Field(label: "Ime tima ili kluba") {
                         TextField("npr. AK Mladost sprint", text: $team).textInputAutocapitalization(.words).input()
                     }
-                    .padding(.top, 22)
                 } else {
                     Field(label: "Kod tima") {
                         TextField("ABC234", text: $code)
@@ -180,7 +205,6 @@ struct JoinView: View {
                             }
                             .input(center: true)
                     }
-                    .padding(.top, 22)
                 }
                 if let e = error { Text(e).font(C.bold(14)).foregroundColor(C.red).padding(.top, 12) }
                 PillButton(title: coach ? "Otvori tim" : "Uđi u tim", busy: busy) { submit() }.padding(.top, 16)
@@ -192,9 +216,9 @@ struct JoinView: View {
                 .padding(.top, 10)
                 GhostButton(title: "Odjavi se") { Session.logout() }.padding(.top, 24)
             }
-            .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 32)
+            .padding(.horizontal, 20).padding(.top, 22).padding(.bottom, 32)
         }
-        .background(C.chalk)
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private func submit() {

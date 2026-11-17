@@ -17,7 +17,7 @@ struct JournalTab: View {
             DateStrip(day: $day, from: -27, count: 29, marked: marked)
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(Fmt.niceRelative(day).uppercased()).font(C.display(22)).foregroundColor(C.carbon)
+                    Text(Fmt.niceRelative(day).uppercased()).font(C.display(22)).foregroundColor(C.ink)
                     Card {
                         StepRow(name: "San", unit: "sati", value: d.has("sleep") ? d.double("sleep", 8) : 8, step: 0.5, lo: 0, hi: 14, suffix: " h") { save("sleep", .num($0)) }
                         Divider().padding(.vertical, 10)
@@ -25,7 +25,7 @@ struct JournalTab: View {
                         Divider().padding(.vertical, 10)
                         StepRow(name: "Kreatin", unit: "grama", value: d.double("creatine"), step: 1, lo: 0, hi: 30, suffix: " g") { save("creatine", .num($0)) }
                         Divider().padding(.vertical, 10)
-                        Text("Vitamini i ostalo").font(C.bold(14)).foregroundColor(C.carbon)
+                        Text("Vitamini i ostalo").font(C.bold(14)).foregroundColor(C.ink)
                         let on = Set(d["vitamins"].list.map { $0.asString })
                         FlowLayout(spacing: 6) {
                             ForEach(Model.vitamins, id: \.self) { v in
@@ -43,10 +43,10 @@ struct JournalTab: View {
                         HStack {
                             Label12("Jutarnji upitnik")
                             Spacer()
-                            Tag(text: done ? "Ispunjeno" : "Nije ispunjeno", fg: done ? .white : C.carbon, bg: done ? C.green : C.coralSoft)
+                            Tag(text: done ? "Ispunjeno" : "Nije ispunjeno", fg: done ? .white : C.ink, bg: done ? C.green : C.coralSoft)
                         }
                         if done {
-                            Text(Self.summary(d)).font(C.text(13)).foregroundColor(C.carbon).padding(.top, 8)
+                            Text(Self.summary(d)).font(C.text(13)).foregroundColor(C.ink).padding(.top, 8)
                         }
                         GhostButton(title: done ? "Uredi odgovore" : "Ispuni upitnik") { editWellness = day }
                             .padding(.top, 12)
@@ -96,13 +96,13 @@ struct StepRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 1) {
-                Text(name).font(C.bold(15)).foregroundColor(C.carbon)
+                Text(name).font(C.bold(15)).foregroundColor(C.ink)
                 Text(unit).font(C.text(12)).foregroundColor(C.muted)
             }
             Spacer()
             HStack(spacing: 0) {
                 stepButton("−") { set(max(lo, value - step)) }
-                Text(Fmt.n(value) + suffix).font(C.display(18)).foregroundColor(C.carbon).frame(minWidth: 70)
+                Text(Fmt.n(value) + suffix).font(C.display(18)).foregroundColor(C.ink).frame(minWidth: 70)
                 stepButton("+") { set(min(hi, value + step)) }
             }
         }
@@ -110,7 +110,7 @@ struct StepRow: View {
 
     private func stepButton(_ t: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(t).font(C.display(20)).foregroundColor(C.carbon)
+            Text(t).font(C.display(20)).foregroundColor(C.ink)
                 .frame(width: 44, height: 44)
                 .background(Circle().fill(C.chalk))
                 .overlay(Circle().stroke(C.stone, lineWidth: 1))
@@ -162,7 +162,7 @@ struct WellnessView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("DOBRO JUTRO").font(C.display(22)).foregroundColor(C.carbon).padding(.top, 6)
+                    Text("DOBRO JUTRO").font(C.display(22)).foregroundColor(C.ink).padding(.top, 6)
                     Text(Fmt.niceRelative(date) + "  ·  par klikova i gotovo").font(C.text(13)).foregroundColor(C.muted)
                     let qs = questions
                     ForEach(Array(qs.enumerated()), id: \.offset) { i, q in
@@ -177,7 +177,7 @@ struct WellnessView: View {
             .navigationTitle("Jutarnji upitnik")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Zatvori") { close() }.foregroundColor(C.carbon) }
+                ToolbarItem(placement: .cancellationAction) { Button("Zatvori") { close() }.foregroundColor(C.ink) }
             }
         }
         .onAppear {
@@ -201,7 +201,7 @@ struct WellnessView: View {
     @ViewBuilder private func question(_ q: JSON) -> some View {
         let id = q.string("id")
         Card {
-            Text(q.string("text")).font(C.bold(15)).foregroundColor(C.carbon)
+            Text(q.string("text")).font(C.bold(15)).foregroundColor(C.ink)
             switch q.string("type") {
             case "scale":
                 let cur = answers.int(id)
@@ -211,7 +211,7 @@ struct WellnessView: View {
                             answers[id] = .num(Double(v))
                             UISelectionFeedbackGenerator().selectionChanged()
                         } label: {
-                            Text("\(v)").font(C.display(18)).foregroundColor(cur == v ? .white : C.carbon)
+                            Text("\(v)").font(C.display(18)).foregroundColor(cur == v ? .white : C.ink)
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .background(Capsule().fill(cur == v ? C.scale(v) : C.chalk))
                                 .overlay(Capsule().stroke(cur == v ? C.scale(v) : C.stone, lineWidth: 1))
@@ -233,10 +233,10 @@ struct WellnessView: View {
                 HStack(spacing: 10) {
                     ForEach(["da", "ne"], id: \.self) { opt in
                         Button { answers[id] = .str(opt) } label: {
-                            Text(opt.uppercased()).font(C.display(15)).foregroundColor(cur == opt ? .white : C.carbon)
+                            Text(opt.uppercased()).font(C.display(15)).foregroundColor(cur == opt ? C.onSel : C.ink)
                                 .frame(maxWidth: .infinity, minHeight: 44)
-                                .background(Capsule().fill(cur == opt ? C.carbon : C.chalk))
-                                .overlay(Capsule().stroke(cur == opt ? C.carbon : C.stone, lineWidth: 1))
+                                .background(Capsule().fill(cur == opt ? C.sel : C.chalk))
+                                .overlay(Capsule().stroke(cur == opt ? C.sel : C.stone, lineWidth: 1))
                         }
                         .buttonStyle(.plain)
                     }

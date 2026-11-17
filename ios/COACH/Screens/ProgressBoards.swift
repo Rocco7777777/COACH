@@ -10,19 +10,24 @@ struct ProgressTab: View {
     var body: some View {
         let me = Prefs.athleteId
         let season = seasonTotals(me)
-        let series = Progress.build(store, me)
+        let all = Progress.build(store, me)
+        let comps: [Progress.Series] = all.filter { $0.kind == Progress.comp }
+        let series: [Progress.Series] = all.filter { $0.kind != Progress.comp }
+        // disciplines the coach gave me that have no result yet
+        let waiting: [JSON] = Comp.of(store, me).filter { d in !comps.contains { $0.key == Comp.key(d.string("id")) } }
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("SEZONA").font(C.display(22)).foregroundColor(C.carbon)
+                Text("SEZONA").font(C.display(22)).foregroundColor(C.ink)
                 HStack(spacing: 12) {
                     StatTile(value: Fmt.n((season.km * 10).rounded() / 10), label: "km pretrčano", bg: C.carbon, fg: .white)
-                    StatTile(value: Fmt.n2((season.kg / 10).rounded() / 100), label: "tona podignuto", bg: C.coral, fg: C.carbon)
+                    StatTile(value: Fmt.n2((season.kg / 10).rounded() / 100), label: "tona podignuto", bg: C.coral, fg: C.night)
                 }
                 HStack(spacing: 12) {
-                    StatTile(value: "\(Int(season.n))", label: "treninga", bg: C.white, fg: C.carbon)
-                    StatTile(value: sleep7(me), label: "san, zadnjih 7 dana", bg: C.blue, fg: .white)
+                    StatTile(value: "\(Int(season.n))", label: "treninga", bg: C.card, fg: C.ink)
+                    StatTile(value: sleep7(me), label: "san, zadnjih 7 dana", bg: C.blueFill, fg: .white)
                 }
-                Text("PO VJEŽBI").font(C.display(15)).foregroundColor(C.carbon).padding(.top, 14)
+                if !comps.isEmpty || !waiting.isEmpty { mine(comps, waiting) }
+                Text("PO VJEŽBI").font(C.display(15)).foregroundColor(C.ink).padding(.top, 14)
                 if series.isEmpty {
                     EmptyCard(title: "Još nema grafova", text: "Graf se pojavi čim upišeš prvu vježbu ili dionicu.")
                 }
@@ -35,6 +40,26 @@ struct ProgressTab: View {
             }
             .padding(16)
         }
+    }
+
+    /// What I compete in: a graph of the season per discipline, results come from the coach.
+    @ViewBuilder
+    private func mine(_ comps: [Progress.Series], _ waiting: [JSON]) -> some View {
+        Text("MOJE DISCIPLINE").font(C.display(15)).foregroundColor(C.ink).padding(.top, 14)
+        ForEach(Array(comps.enumerated()), id: \.offset) { _, s in
+            Button { path.append(Route.series(s.key)) } label: { SeriesRow(series: s) }.buttonStyle(.plain)
+        }
+        ForEach(waiting, id: \.idKey) { d in
+            HStack {
+                Text(d.string("name")).font(C.bold(15)).foregroundColor(C.ink)
+                Spacer()
+                Text("još nema rezultata").font(C.text(12)).foregroundColor(C.muted)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 14).fill(C.card))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(C.stone, lineWidth: 1))
+        }
+        Text("Rezultate s natjecanja upisuje trener.").font(C.text(12)).foregroundColor(C.muted)
     }
 
     private func seasonTotals(_ me: String) -> (km: Double, kg: Double, n: Double) {
@@ -73,21 +98,21 @@ struct StatTile: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 14).fill(bg))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(bg == C.white ? C.stone : .clear, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(bg == C.card ? C.stone : .clear, lineWidth: 1))
     }
 }
 
 struct SeriesRow: View {
     let series: Progress.Series
     var body: some View {
-        let d = Progress.delta(series)
-        let pts = Progress.view(series, Progress.r1g, top: false)
+        let comp: Bool = series.kind == Progress.comp
+        let d: (now: Double, change: Double, full: Bool, day: Int)? = comp ? nil : Progress.delta(series)
+        let pts: [Progress.Pt] = Progress.view(series, comp ? Progress.rAll : Progress.r1g, top: false)
+        let sub: String = subText(comp, d)
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(series.name).font(C.bold(15)).foregroundColor(C.carbon).lineLimit(1)
-                if let d = d {
-                    Text(series.fmt(d.now) + Boards.unit(series) + "  ·  " + series.metric).font(C.text(12)).foregroundColor(C.muted)
-                }
+                Text(series.name).font(C.bold(15)).foregroundColor(C.ink).lineLimit(1)
+                if !sub.isEmpty { Text(sub).font(C.text(12)).foregroundColor(C.muted).lineLimit(1) }
             }
             Spacer(minLength: 4)
             Sparkline(values: pts.map { $0.tr }, lower: series.lower).frame(width: 70, height: 28)
@@ -96,11 +121,18 @@ struct SeriesRow: View {
                     .foregroundColor(Progress.good(series, d.change) ? C.green : C.coral)
                     .frame(minWidth: 64, alignment: .trailing)
             }
-            Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(C.mutedLight)
+            Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundColor(C.faint)
         }
         .padding(12)
-        .background(RoundedRectangle(cornerRadius: 14).fill(C.white))
+        .background(RoundedRectangle(cornerRadius: 14).fill(C.card))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(C.stone, lineWidth: 1))
+    }
+
+    /// Exercises: the trend now. Competitions: personal best and the best of this season.
+    private func subText(_ comp: Bool, _ d: (now: Double, change: Double, full: Bool, day: Int)?) -> String {
+        if comp { return Comp.rowText(series) }
+        guard let d = d else { return "" }
+        return series.fmt(d.now) + Boards.unit(series) + "  ·  " + series.metric
     }
 }
 
@@ -138,53 +170,7 @@ struct SeriesView: View {
         let s = Progress.build(store, athleteId).first { $0.key == key }
         ScrollView {
             if let s = s {
-                let pts = Progress.view(s, range, top: top)
-                VStack(alignment: .leading, spacing: 12) {
-                    Card(padding: 16, background: C.carbon, border: nil) {
-                        Label12(s.group, color: C.mutedLight)
-                        Text(s.name.uppercased()).font(C.display(22)).foregroundColor(.white).padding(.top, 4)
-                        if let last = pts.last {
-                            HStack(alignment: .lastTextBaseline, spacing: 6) {
-                                Text(s.fmt(last.tr)).font(C.display(38)).foregroundColor(.white)
-                                Text(unitLine(s))
-                                    .font(C.text(13)).foregroundColor(C.mutedLight)
-                            }
-                            .padding(.top, 6)
-                        }
-                        if let d = Progress.delta(s) {
-                            Text(Progress.deltaText(s, d.change) + (d.full ? " u godinu dana" : " od " + Progress.date(d.day)))
-                                .font(C.bold(13)).foregroundColor(Progress.good(s, d.change) ? Color(hex: 0x3DDC97) : C.coral).padding(.top, 2)
-                        }
-                    }
-                    HStack(spacing: 8) {
-                        Chip(title: "3 mj", on: range == Progress.r3m) { range = Progress.r3m }
-                        Chip(title: "1 god", on: range == Progress.r1g) { range = Progress.r1g }
-                        Chip(title: "Sve", on: range == Progress.rAll) { range = Progress.rAll }
-                        Spacer()
-                        if s.kind == Progress.gym {
-                            Chip(title: "Najteži set", on: top, onColor: C.blue) { top.toggle() }
-                        }
-                    }
-                    Card {
-                        if pts.isEmpty {
-                            Text("Nema upisa u ovom razdoblju.").font(C.text(14)).foregroundColor(C.muted)
-                        } else {
-                            chart(s, pts).frame(height: 220)
-                        }
-                    }
-                    Text("ZADNJI UPISI").font(C.display(14)).foregroundColor(C.carbon).padding(.top, 6)
-                    ForEach(Array(pts.reversed().prefix(12).enumerated()), id: \.offset) { _, p in
-                        HStack {
-                            Text(Progress.date(p.day)).font(C.bold(13)).foregroundColor(C.carbon).frame(width: 96, alignment: .leading)
-                            Text(p.set).font(C.text(13)).foregroundColor(C.muted).lineLimit(1)
-                            Spacer()
-                            if p.pr { Tag(text: "REKORD", fg: .white, bg: C.coral) }
-                        }
-                        .padding(.vertical, 4)
-                        Divider()
-                    }
-                }
-                .padding(16)
+                page(s, Progress.view(s, range, top: top))
             } else {
                 EmptyCard(title: "Nema podataka", text: "Za ovu vježbu još nema upisa.").padding(16)
             }
@@ -192,9 +178,103 @@ struct SeriesView: View {
         .background(C.chalk)
         .navigationTitle("Napredak")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+    }
+
+    // Small pieces: Xcode 26's type checker times out on one big body.
+    private func page(_ s: Progress.Series, _ pts: [Progress.Pt]) -> some View {
+        let comp: Bool = s.kind == Progress.comp
+        let shown: [Progress.Pt] = Array(pts.reversed().prefix(comp ? 40 : 12))
+        return VStack(alignment: .leading, spacing: 12) {
+            if comp { compHero(s) } else { hero(s, pts) }
+            chips(s)
+            Card {
+                if pts.isEmpty {
+                    Text(comp ? "Nema rezultata u ovom razdoblju." : "Nema upisa u ovom razdoblju.").font(C.text(14)).foregroundColor(C.muted)
+                } else {
+                    chart(s, pts).frame(height: 220)
+                }
+            }
+            if s.kind == Progress.gym {
+                Text("Procijenjeni 1RM računa se iz najboljeg seta dana po RPE tablici: 1 ponavljanje @10 je točno ta kila, a svako ponavljanje u rezervi diže procjenu. Set bez RPE računa se kao @10. Velika brojka gore je trend zadnjih pet treninga.")
+                    .font(C.text(12)).foregroundColor(C.muted)
+            }
+            Text(comp ? "REZULTATI" : "ZADNJI UPISI").font(C.display(14)).foregroundColor(C.ink).padding(.top, 6)
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, p in
+                entry(s, p)
+                Divider()
+            }
+        }
+        .padding(16)
+    }
+
+    private func hero(_ s: Progress.Series, _ pts: [Progress.Pt]) -> some View {
+        let d = Progress.delta(s)
+        let good: Bool = d.map { Progress.good(s, $0.change) } ?? true
+        let change: String = d.map { Progress.deltaText(s, $0.change) + ($0.full ? " u godinu dana" : " od " + Progress.date($0.day)) } ?? ""
+        return Card(padding: 16, background: C.carbon, border: nil) {
+            Label12(s.group, color: C.mutedLight)
+            Text(s.name.uppercased()).font(C.display(22)).foregroundColor(.white).padding(.top, 4)
+            if let last = pts.last {
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    Text(s.fmt(last.tr)).font(C.display(38)).foregroundColor(.white)
+                    Text(unitLine(s)).font(C.text(13)).foregroundColor(C.mutedLight)
+                }
+                .padding(.top, 6)
+            }
+            if !change.isEmpty {
+                Text(change).font(C.bold(13)).foregroundColor(good ? Color(hex: 0x3DDC97) : C.coral).padding(.top, 2)
+            }
+        }
+    }
+
+    /// A discipline: the personal best big, the best of this calendar year under it.
+    private func compHero(_ s: Progress.Series) -> some View {
+        let best: Progress.Pt? = s.best
+        let year: Int = Comp.thisYear()
+        let sb: Progress.Pt? = Comp.seasonBest(s, year)
+        let big: String = best.map { Comp.fmt(s.cunit, $0.v) } ?? "–"
+        let unit: String = best.map { Comp.suffix(s.cunit, $0.v).trimmingCharacters(in: .whitespaces) } ?? ""
+        let when: String = best.map { Progress.date($0.day) } ?? ""
+        let label: String = (unit.isEmpty ? "" : unit + "  ·  ") + "osobni rekord, " + when
+        let season: String = sb.map { "Sezona \(year): " + Comp.text(s.cunit, $0.v) + ", " + Progress.date($0.day) } ?? "Sezona \(year): još bez rezultata"
+        return Card(padding: 16, background: C.carbon, border: nil) {
+            Label12(s.group, color: C.mutedLight)
+            Text(s.name.uppercased()).font(C.display(22)).foregroundColor(.white).padding(.top, 4)
+            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                Text(big).font(C.display(38)).foregroundColor(.white)
+                Text(label).font(C.text(13)).foregroundColor(C.mutedLight)
+            }
+            .padding(.top, 6)
+            Text(season).font(C.bold(13)).foregroundColor(sb == nil ? C.mutedLight : Color(hex: 0x3DDC97)).padding(.top, 2)
+        }
+    }
+
+    private func chips(_ s: Progress.Series) -> some View {
+        HStack(spacing: 8) {
+            Chip(title: "3 mj", on: range == Progress.r3m) { range = Progress.r3m }
+            Chip(title: "1 god", on: range == Progress.r1g) { range = Progress.r1g }
+            Chip(title: "Sve", on: range == Progress.rAll) { range = Progress.rAll }
+            Spacer()
+            if s.kind == Progress.gym {
+                Chip(title: "Najteži set", on: top, onColor: C.blueFill) { top.toggle() }
+            }
+        }
+    }
+
+    /// One line of the list: the date, the set or result, for the gym what it estimates, and REKORD.
+    private func entry(_ s: Progress.Series, _ p: Progress.Pt) -> some View {
+        let est: String = s.kind == Progress.gym && !top ? "= " + s.fmt(p.v) + " kg" : ""
+        return HStack(spacing: 8) {
+            Text(Progress.date(p.day)).font(C.bold(13)).foregroundColor(C.ink).frame(width: 86, alignment: .leading)
+            Text(p.set).font(C.text(13)).foregroundColor(C.muted).lineLimit(1)
+            Spacer(minLength: 0)
+            if !est.isEmpty { Text(est).font(C.bold(13)).foregroundColor(C.ink).lineLimit(1).fixedSize() }
+            if p.pr { Tag(text: "REKORD", fg: .white, bg: C.coral) }
+        }
+        .padding(.vertical, 4)
     }
 
     private func chart(_ s: Progress.Series, _ pts: [Progress.Pt]) -> some View {
@@ -212,7 +292,7 @@ struct SeriesView: View {
             }
             ForEach(Array(pts.enumerated()), id: \.offset) { _, p in
                 PointMark(x: .value("Dan", day(p.day)), y: .value("Rezultat", p.v * sign))
-                    .foregroundStyle(p.pr ? C.coral : C.carbon.opacity(0.35))
+                    .foregroundStyle(p.pr ? C.coral : C.ink.opacity(0.35))
                     .symbolSize(p.pr ? 60 : 22)
             }
         }
@@ -227,7 +307,7 @@ struct SeriesView: View {
 
     private func unitLine(_ s: Progress.Series) -> String {
         let metric: String = top ? "najteži set" : s.metric
-        return Boards.unit(s).trimmingCharacters(in: .whitespaces) + "  ·  " + metric
+        return Boards.unit(s).trimmingCharacters(in: .whitespaces) + "  ·  " + metric + ", trend"
     }
 
     private func day(_ d: Int) -> Date { Date(timeIntervalSince1970: Double(d) * 86400 + 43200) }
@@ -236,6 +316,8 @@ struct SeriesView: View {
 // MARK: LJESTVICE
 
 struct BoardTab: View {
+    /// Coach only: opens the list where the exercises with a leaderboard are picked.
+    var onEdit: (() -> Void)? = nil
     @ObservedObject var store = Store.shared
     @AppStorage("boardProg") private var prog = true
     @State private var loading = false
@@ -284,6 +366,7 @@ struct BoardTab: View {
                     Chip(title: "Najbolji rezultat", on: !prog) { prog = false }
                 }
                 .padding(.top, 2)
+                if let edit = onEdit { pickRow(edit) }
 
                 if loading && boards.isEmpty {
                     Text("Učitavam rezultate tima…").font(C.text(14)).foregroundColor(C.muted).padding(.top, 12)
@@ -297,14 +380,11 @@ struct BoardTab: View {
                 } else {
                     ForEach(Array(boards.enumerated()), id: \.offset) { i, b in
                         if i == 0 || boards[i - 1].series.group != b.series.group {
-                            Text(b.series.group.uppercased()).font(C.display(13)).tracking(1).foregroundColor(C.carbon).padding(.top, 10)
+                            Text(b.series.group.uppercased()).font(C.display(13)).tracking(1).foregroundColor(C.ink).padding(.top, 10)
                         }
                         Button { open = BoardId(id: b.key) } label: { BoardRow(board: b, prog: prog) }.buttonStyle(.plain)
                     }
-                    Text(prog
-                         ? "Napredak: koliko si bolji nego prije 12 mjeseci (ili od prvog upisa), u postocima. Strelica: pomak na ljestvici u zadnjih 7 dana, ako si taj tjedan radio tu disciplinu."
-                         : "Najbolji rezultat u zadnjih 12 mjeseci. Teretana: procijenjeni 1RM. Strelica: pomak na ljestvici u zadnjih 7 dana.")
-                        .font(C.text(12)).foregroundColor(C.muted).padding(.top, 10)
+                    Text(footnote(coach)).font(C.text(12)).foregroundColor(C.muted).padding(.top, 10)
                 }
             }
             .padding(16)
@@ -317,6 +397,30 @@ struct BoardTab: View {
                     .presentationDetents([.medium, .large])
             }
         }
+    }
+
+    /// Coach: "which exercises have a board" with a way in to change it.
+    private func pickRow(_ edit: @escaping () -> Void) -> some View {
+        let text: String = BoardPick.custom(store) ? "Ljestvicu imaju vježbe koje si odabrao." : "Ljestvicu ima svaka vježba."
+        return Button(action: edit) {
+            HStack(spacing: 8) {
+                Text(text).font(C.text(13)).foregroundColor(C.muted)
+                Spacer(minLength: 4)
+                Text("ODABERI VJEŽBE").font(C.bold(12)).foregroundColor(C.blue)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: 14).fill(C.card))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(C.stone, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func footnote(_ coach: Bool) -> String {
+        var t: String = prog
+            ? "Napredak: koliko si bolji nego prije 12 mjeseci (ili od prvog upisa), u postocima. Strelica: pomak na ljestvici u zadnjih 7 dana, ako si taj tjedan radio tu disciplinu."
+            : "Najbolji rezultat u zadnjih 12 mjeseci. Teretana: procijenjeni 1RM. Strelica: pomak na ljestvici u zadnjih 7 dana."
+        if !coach && BoardPick.custom(store) { t += " Koje vježbe imaju ljestvicu bira trener." }
+        return t
     }
 
     private func movesText(_ mine: [Boards.Row]) -> Text {
@@ -346,6 +450,7 @@ struct BoardRow: View {
     var body: some View {
         let mine = board.mine, lead = board.rows[0]
         let coach = Prefs.isCoach
+        let medal: Bool = (mine?.place ?? 9) <= 3
         HStack(spacing: 10) {
             if coach {
                 // the coach has no place of their own: the leader's initials
@@ -353,12 +458,12 @@ struct BoardRow: View {
                     .frame(width: 40, height: 46)
                     .background(RoundedRectangle(cornerRadius: 10).fill(C.carbon))
             } else {
-                Text(mine.map { "\($0.place)" } ?? "–").font(C.display(20)).foregroundColor(C.carbon)
+                Text(mine.map { "\($0.place)" } ?? "–").font(C.display(20)).foregroundColor(medal ? C.night : C.ink)
                     .frame(width: 40, height: 46)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(mine != nil && mine!.place <= 3 ? C.coral : Color(hex: 0xEDEFEE)))
+                    .background(RoundedRectangle(cornerRadius: 10).fill(medal ? C.coral : C.chip))
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(board.name).font(C.bold(15)).foregroundColor(C.carbon).lineLimit(1)
+                Text(board.name).font(C.bold(15)).foregroundColor(C.ink).lineLimit(1)
                 Text(mine?.place == 1 ? "vodiš, \(board.rows.count) na ljestvici" : "vodi " + Fmt.shortName(lead.name) + " · " + Boards.value(board, lead, prog))
                     .font(C.text(12)).foregroundColor(C.muted).lineLimit(1)
             }
@@ -367,14 +472,14 @@ struct BoardRow: View {
                 Text("\(board.rows.count) sport.").font(C.text(12)).foregroundColor(C.muted)
             } else if let m = mine {
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(Boards.value(board, m, prog)).font(C.bold(14)).foregroundColor(C.carbon)
+                    Text(Boards.value(board, m, prog)).font(C.bold(14)).foregroundColor(C.ink)
                     Text(m.move > 0 ? "▲ \(m.move)" : m.move < 0 ? "▼ \(-m.move)" : "=")
                         .font(C.bold(12)).foregroundColor(m.move > 0 ? C.green : m.move < 0 ? C.coral : Color(hex: 0xA9AFB3))
                 }
             }
         }
         .padding(8)
-        .background(RoundedRectangle(cornerRadius: 14).fill(C.white))
+        .background(RoundedRectangle(cornerRadius: 14).fill(C.card))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(C.stone, lineWidth: 1))
     }
 }
@@ -388,7 +493,7 @@ struct BoardDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Label12(board.series.group)
-                Text(board.name.uppercased()).font(C.display(22)).foregroundColor(C.carbon)
+                Text(board.name.uppercased()).font(C.display(22)).foregroundColor(C.ink)
                 Text(prog ? "Napredak u zadnjih 12 mjeseci" : "Najbolji rezultat u zadnjih 12 mjeseci").font(C.text(13)).foregroundColor(C.muted)
                 HStack(alignment: .bottom, spacing: 8) {
                     podium(1, height: 70)
@@ -398,16 +503,16 @@ struct BoardDetail: View {
                 .padding(.vertical, 10)
                 ForEach(Array(board.rows.enumerated()), id: \.offset) { _, r in
                     HStack(spacing: 10) {
-                        Text("\(r.place).").font(C.display(16)).foregroundColor(r.me ? C.coral : C.carbon).frame(width: 32, alignment: .leading)
+                        Text("\(r.place).").font(C.display(16)).foregroundColor(r.me ? C.coral : C.ink).frame(width: 32, alignment: .leading)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(r.name + (r.me ? " (ti)" : "")).font(C.bold(15)).foregroundColor(C.carbon)
+                            Text(r.name + (r.me ? " (ti)" : "")).font(C.bold(15)).foregroundColor(C.ink)
                             if !r.sub.isEmpty { Text(r.sub).font(C.text(12)).foregroundColor(C.muted) }
                         }
                         Spacer()
-                        Text(Boards.value(board, r, prog)).font(C.bold(15)).foregroundColor(C.carbon)
+                        Text(Boards.value(board, r, prog)).font(C.bold(15)).foregroundColor(C.ink)
                     }
                     .padding(10)
-                    .background(RoundedRectangle(cornerRadius: 12).fill(r.me ? C.coralSoft : C.white))
+                    .background(RoundedRectangle(cornerRadius: 12).fill(r.me ? C.coralSoft : C.card))
                 }
             }
             .padding(20)
@@ -421,9 +526,9 @@ struct BoardDetail: View {
             VStack(spacing: 6) {
                 Text(Fmt.initials(r.name)).font(C.display(16)).foregroundColor(.white)
                     .frame(width: 44, height: 44).background(Circle().fill(r.me ? C.coral : C.carbon))
-                Text(Fmt.shortName(r.name)).font(C.bold(12)).foregroundColor(C.carbon).lineLimit(1)
+                Text(Fmt.shortName(r.name)).font(C.bold(12)).foregroundColor(C.ink).lineLimit(1)
                 Text(Boards.value(board, r, prog)).font(C.text(11)).foregroundColor(C.muted).lineLimit(1)
-                Text("\(i + 1)").font(C.display(24)).foregroundColor(i == 0 ? C.carbon : .white)
+                Text("\(i + 1)").font(C.display(24)).foregroundColor(i == 0 ? C.night : .white)
                     .frame(maxWidth: .infinity, minHeight: height)
                     .background(RoundedRectangle(cornerRadius: 10).fill(i == 0 ? C.coral : C.carbon2))
             }

@@ -44,6 +44,12 @@ enum Prefs {
         set { d.set(newValue, forKey: "demoMode") }
     }
 
+    /// Tamna tema (Postavke). Stays through a logout: it belongs to the phone, not to the account.
+    static var dark: Bool {
+        get { d.bool(forKey: "dark") }
+        set { d.set(newValue, forKey: "dark") }
+    }
+
     static var reminderHour: Int {
         get { d.object(forKey: "remH") == nil ? 8 : d.integer(forKey: "remH") }
         set { d.set(newValue, forKey: "remH") }

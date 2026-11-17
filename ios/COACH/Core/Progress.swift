@@ -1,10 +1,11 @@
 import Foundation
 
 /// Progress per exercise (Progress.java): one point per training day.
-///   gym: estimated 1RM of the best set, kg × (1 + (reps + 10 − RPE) / 30), no RPE = @10
+///   gym: estimated 1RM of the best set by the RPE chart (see e1rm), no RPE = @10
 ///   run reps: best rep of the day; gps: average pace. Lower is better for both.
+///   comp: results from competitions in a discipline the coach set up (Comp), one point per result.
 enum Progress {
-    static let gym = 0, run = 1, gps = 2
+    static let gym = 0, run = 1, gps = 2, comp = 3
     static let starts = ["blok", "let", "el"]
     static let startNames = ["Iz bloka", "Leteći", "Električno"]
 
@@ -27,14 +28,31 @@ enum Progress {
         var pts: [Pt] = []
         var best3 = 0.0, best5 = 0.0
         var best3Day = 0, best5Day = 0
+        /// comp only: the discipline's unit (Comp.time, Comp.length, Comp.points).
+        var cunit = ""
 
         func fmt(_ v: Double) -> String {
             if kind == Progress.gym { return Progress.kg(v) }
             if kind == Progress.gps { return Fmt.clock(v) }
+            if kind == Progress.comp { return Comp.fmt(cunit, v) }
             return Progress.sec(v)
         }
 
-        var group: String { kind == Progress.gym ? "Teretana" : kind == Progress.run ? "Sprint i dionice" : "Trčanje km" }
+        var group: String {
+            switch kind {
+            case Progress.gym: return "Teretana"
+            case Progress.run: return "Sprint i dionice"
+            case Progress.comp: return "Natjecanja"
+            default: return "Trčanje km"
+            }
+        }
+
+        /// The best result ever, nil without results.
+        var best: Pt? {
+            var b: Pt? = nil
+            for p in pts where p.v > 0 { if b == nil || better(p.v, b!.v) { b = p } }
+            return b
+        }
 
         func better(_ a: Double, _ b: Double) -> Bool { lower ? a < b : a > b }
     }
@@ -82,10 +100,24 @@ enum Progress {
         return "\(c.day ?? 0).\(c.month ?? 0).\(c.year ?? 0)."
     }
 
-    static func e1rm(_ kg: Double, _ reps: Double, _ rpe0: Double) -> Double {
+    /// The RPE chart lifters use (RTS / Tuchscherer): % of 1RM for n = 1…12, where n = reps done + reps left in reserve.
+    static let rpeChart: [Double] = [100, 95.5, 92.2, 89.2, 86.3, 83.7, 81.1, 78.6, 76.2, 73.9, 70.7, 68.0]
+
+    /// Share of the 1RM a set stands for, 1.0 … 0.68. Reps in reserve = 10 − RPE; no RPE (or nonsense) counts as @10.
+    /// 1 rep @10 is 1.0, so the estimate is exactly the weight on the bar. Half RPEs fall between two steps of the
+    /// chart; anything past 12 counts as 12, so long easy sets don't blow the estimate up.
+    static func share(_ reps: Double, _ rpe0: Double) -> Double {
         let rpe = (rpe0 <= 0 || rpe0 > 10) ? 10 : rpe0
-        let rtf = min(reps + (10 - rpe), 12)
-        return kg * (1 + rtf / 30)
+        let n = min(max(reps + (10 - rpe), 1), 12)
+        let i = Int(n.rounded(.down))
+        let a = rpeChart[i - 1]
+        let b = i < 12 ? rpeChart[i] : a
+        return (a + (b - a) * (n - Double(i))) / 100
+    }
+
+    /// Estimated 1RM of one set: kg / share. 100 kg × 1 @10 = 100; × 5 @8 = 123,3; × 3 @9 = 112,1.
+    static func e1rm(_ kg: Double, _ reps: Double, _ rpe0: Double) -> Double {
+        kg / share(reps, rpe0)
     }
 
     // MARK: keys
@@ -189,12 +221,16 @@ enum Progress {
         for (k, n) in latestName { if let s = all[k], s.kind == gym { s.name = n } }
         var list = Array(all.values)
         for s in list { s.pts.sort { $0.day < $1.day } }
+        list.append(contentsOf: Comp.series(store, athleteId))
         list.sort(by: order)
         return list.filter { !$0.pts.isEmpty }
     }
 
+    /// Competitions first, then gym, reps, runs in km.
+    private static func rank(_ kind: Int) -> Int { kind == comp ? -1 : kind }
+
     static func order(_ a: Series, _ b: Series) -> Bool {
-        if a.kind != b.kind { return a.kind < b.kind }
+        if a.kind != b.kind { return rank(a.kind) < rank(b.kind) }
         if a.kind == run {
             let pa = a.key.components(separatedBy: ":"), pb = b.key.components(separatedBy: ":")
             let da = Fmt.num(pa[1]), db = Fmt.num(pb[1])
@@ -346,6 +382,9 @@ enum Progress {
             trend(&pts)
             let from = today - (range == r3m ? 92 : 365)
             pts = pts.filter { $0.day > from }
+        } else if s.kind == comp {
+            // a handful of competitions a year: every result stays
+            trend(&pts)
         } else {
             var by: [Int: Pt] = [:]
             for p in pts {
@@ -357,6 +396,8 @@ enum Progress {
             pts = by.keys.sorted().map { var p = by[$0]!; p.month = true; return p }
             trend(&pts)
         }
+        // competitions: the line goes through the results themselves, a median of five would hide a season
+        if s.kind == comp { for i in pts.indices { pts[i].tr = pts[i].v } }
         var prDays = Set<Int>()
         var best = Double.nan
         for p in s.pts {
@@ -400,6 +441,7 @@ enum Progress {
         let a = abs(d)
         if s.kind == gym { return sign + kg(a) + " kg" }
         if s.kind == run { return sign + sec(a) + " s" }
+        if s.kind == comp { return sign + Comp.text(s.cunit, a) }
         return sign + Fmt.clock(a)
     }
 

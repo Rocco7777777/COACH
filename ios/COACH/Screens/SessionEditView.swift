@@ -28,14 +28,14 @@ struct SessionEditView: View {
                     ForEach(Array(s["items"].list.enumerated()), id: \.element.idKey) { i, _ in
                         ItemEditCard(s: $s, dirty: $dirty, index: i, names: names) { perFor = PerPick(index: i, free: $0) }
                     }
-                    Text("DODAJ").font(C.display(15)).foregroundColor(C.carbon).padding(.top, 10)
+                    Text("DODAJ").font(C.display(15)).foregroundColor(C.ink).padding(.top, 10)
                     HStack(spacing: 8) {
-                        addButton("Dionice", "run", C.coral, C.carbon)
+                        addButton("Dionice", "run", C.coral, C.night)
                         addButton("Trčanje km", "gps", C.green, .white)
                     }
                     HStack(spacing: 8) {
-                        addButton("Teretana", "gym", C.blue, .white)
-                        addButton("Napomena", "note", C.white, C.carbon)
+                        addButton("Teretana", "gym", C.blueFill, .white)
+                        addButton("Napomena", "note", C.card, C.ink)
                     }
                     PillButton(title: "Spremi trening") {
                         save()
@@ -63,7 +63,7 @@ struct SessionEditView: View {
                 }
             }
         }
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .keyboardDone()
@@ -171,7 +171,7 @@ struct SessionEditView: View {
         Card {
             HStack(spacing: 8) {
                 Button { pickDate = true } label: {
-                    Text("📅  " + Fmt.nice(s.string("date"))).font(C.bold(14)).foregroundColor(C.carbon)
+                    Text("📅  " + Fmt.nice(s.string("date"))).font(C.bold(14)).foregroundColor(C.ink)
                         .padding(.horizontal, 12).frame(height: 46)
                         .background(Capsule().stroke(C.stone, lineWidth: 1.2))
                 }
@@ -226,7 +226,7 @@ struct SessionEditView: View {
             Text("+ " + label.uppercased()).font(C.display(13)).foregroundColor(fg)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .background(RoundedRectangle(cornerRadius: 16).fill(bg))
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(bg == C.white ? C.stone : bg, lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(bg == C.card ? C.stone : bg, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -279,7 +279,7 @@ struct ItemEditCard: View {
         if type != "run" && type != "gps" && !nm.isEmpty { head = nm }
         return HStack(spacing: 6) {
             RoundedRectangle(cornerRadius: 3).fill(accent).frame(width: 4, height: 18)
-            Text(head.uppercased()).font(C.display(16)).foregroundColor(C.carbon).lineLimit(1)
+            Text(head.uppercased()).font(C.display(16)).foregroundColor(C.ink).lineLimit(1)
             Spacer(minLength: 4)
             roundButton("arrow.up", bg: C.chalk, size: 38) { move(-1) }
             roundButton("arrow.down", bg: C.chalk, size: 38) { move(1) }
@@ -409,7 +409,7 @@ struct PerSection: View {
         return VStack(alignment: .leading, spacing: 6) {
             if !athletes.isEmpty {
                 if !rows.isEmpty {
-                    Rectangle().fill(Color(hex: 0xE6E8E5)).frame(height: 1).padding(.top, 10).padding(.bottom, 4)
+                    Rectangle().fill(C.stone).frame(height: 1).padding(.top, 10).padding(.bottom, 4)
                     Label12("Drugačije za")
                     ForEach(rows, id: \.idKey) { at in row(at) }
                 }
@@ -438,7 +438,7 @@ struct PerSection: View {
             .font(.system(size: 16, weight: .bold)).foregroundColor(C.blue)
             .multilineTextAlignment(.center)
             .padding(.horizontal, 4).frame(minHeight: 42)
-            .background(RoundedRectangle(cornerRadius: 10).fill(C.white))
+            .background(RoundedRectangle(cornerRadius: 10).fill(C.field))
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(C.stone, lineWidth: 1))
     }
 
@@ -457,7 +457,7 @@ struct PerSection: View {
     @ViewBuilder private func row(_ at: JSON) -> some View {
         let id = at.string("id")
         let o = it["per"][id]
-        let name = Text(Fmt.shortName(at.string("name"))).font(C.bold(14)).foregroundColor(C.carbon).lineLimit(1)
+        let name = Text(Fmt.shortName(at.string("name"))).font(C.bold(14)).foregroundColor(C.ink).lineLimit(1)
         switch it.string("type") {
         case "gym":
             HStack(spacing: 4) {

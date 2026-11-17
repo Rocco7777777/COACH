@@ -30,7 +30,7 @@ struct LogbookView: View {
         .background(C.chalk)
         .navigationTitle("Zapisnik")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .keyboardDone()
@@ -163,9 +163,9 @@ struct LogbookView: View {
                             path.append(CoachRoute.logFor(sessionId, at.string("id"), at.string("name")))
                         } label: {
                             Text(Fmt.shortName(at.string("name")) + (n.1 > 0 ? "  \(n.0)/\(n.1)" : ""))
-                                .font(C.bold(14)).foregroundColor(C.carbon)
+                                .font(C.bold(14)).foregroundColor(C.ink)
                                 .padding(.horizontal, 12).frame(minHeight: 40)
-                                .background(Capsule().fill(all ? C.greenSoft : C.white))
+                                .background(Capsule().fill(all ? C.greenSoft : C.card))
                                 .overlay(Capsule().stroke(all ? C.greenSoft : C.stone, lineWidth: 1.2))
                         }
                         .buttonStyle(.plain)
@@ -179,7 +179,7 @@ struct LogbookView: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 2).fill(accent).frame(width: 4, height: 18)
-                Text(Model.title(it).uppercased()).font(C.display(17)).foregroundColor(C.carbon)
+                Text(Model.title(it).uppercased()).font(C.display(17)).foregroundColor(C.ink)
             }
             let plan = Model.plan(it)
             if !plan.isEmpty { Text(plan).font(C.bold(13)).foregroundColor(C.muted) }
@@ -189,7 +189,7 @@ struct LogbookView: View {
     private func stepper(_ itemId: String, _ k: Int, _ n: Int, _ word: String) -> some View {
         HStack {
             roundButton("chevron.left") { go(itemId, k - 1) }.disabled(k <= 0).opacity(k > 0 ? 1 : 0.3)
-            Text("\(word) \(k + 1) / \(n)").font(C.display(15)).tracking(0.6).foregroundColor(C.carbon).frame(maxWidth: .infinity)
+            Text("\(word) \(k + 1) / \(n)").font(C.display(15)).tracking(0.6).foregroundColor(C.ink).frame(maxWidth: .infinity)
             roundButton("chevron.right") { go(itemId, k + 1) }.disabled(k >= n - 1).opacity(k < n - 1 ? 1 : 0.3)
         }
         .padding(4)
@@ -204,7 +204,7 @@ struct LogbookView: View {
     /// Name over a small line with every rep / set of that athlete, the one on screen in coral.
     private func who(_ name: String, _ line: Text, _ own: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
-            Text(Fmt.shortName(name)).font(C.bold(14)).foregroundColor(C.carbon).lineLimit(1)
+            Text(Fmt.shortName(name)).font(C.bold(14)).foregroundColor(C.ink).lineLimit(1)
             line.font(.system(size: 11, weight: .semibold)).lineLimit(1)
             if !own.isEmpty { Text(own).font(.system(size: 11, weight: .semibold)).foregroundColor(C.own).lineLimit(1) }
         }
@@ -327,7 +327,7 @@ struct LogbookView: View {
                 }
             } label: {
                 Image(systemName: "checkmark").font(.system(size: 16, weight: .heavy))
-                    .foregroundColor(done ? .white : C.mutedLight)
+                    .foregroundColor(done ? .white : C.faint)
                     .frame(width: 44, height: 44)
                     .background(Circle().fill(done ? C.green : C.chalk))
             }
@@ -355,9 +355,9 @@ struct LogbookView: View {
                 let run = Model.entries(doc(id, name), itemId).first ?? .object()
                 let own = Model.ownText(it, id)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(Fmt.shortName(name) + (own.isEmpty ? "" : "   " + own)).font(C.bold(14)).foregroundColor(C.carbon)
+                    Text(Fmt.shortName(name) + (own.isEmpty ? "" : "   " + own)).font(C.bold(14)).foregroundColor(C.ink)
                     if Model.recorded(run) {
-                        Text(Model.runLine(run)).font(C.bold(13)).foregroundColor(C.carbon)
+                        Text(Model.runLine(run)).font(C.bold(13)).foregroundColor(C.ink)
                     } else {
                         TypedRun(km0: run.double("km"), s0: run.double("s"), target: target) { km, s in
                             edit(id, name, itemId, 0) { e in

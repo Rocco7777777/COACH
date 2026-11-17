@@ -29,13 +29,13 @@ struct SessionCoachView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button { path.append(CoachRoute.editSession(sessionId)) } label: {
-                    Text("UREDI").font(C.bold(13)).foregroundColor(C.carbon)
+                    Text("UREDI").font(C.bold(13)).foregroundColor(C.night)
                         .padding(.horizontal, 12).padding(.vertical, 6)
                         .background(Capsule().fill(C.coral))
                 }
             }
         }
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .confirmationDialog("Obrisati trening?", isPresented: $askDelete, titleVisibility: .visible) {
@@ -64,7 +64,7 @@ struct SessionCoachView: View {
                 if s.string("date") <= Fmt.today() && !team.isEmpty {
                     AttendanceCard(session: s, audience: team).padding(.top, 8)
                 }
-                Text("REZULTATI").font(C.display(15)).foregroundColor(C.carbon).padding(.top, 16)
+                Text("REZULTATI").font(C.display(15)).foregroundColor(C.ink).padding(.top, 16)
                 ForEach(team, id: \.idKey) { at in
                     ResultCard(session: s, athlete: at, result: store.doc(Store.results, Model.resultId(sessionId, at.string("id"))))
                 }
@@ -75,7 +75,7 @@ struct SessionCoachView: View {
 
     private var copySheet: some View {
         VStack(spacing: 12) {
-            Text("KOPIRAJ NA DAN").font(C.display(17)).foregroundColor(C.carbon)
+            Text("KOPIRAJ NA DAN").font(C.display(17)).foregroundColor(C.ink)
             DatePicker("Datum", selection: $copyDate, displayedComponents: .date)
                 .datePickerStyle(.graphical)
                 .environment(\.locale, Locale(identifier: "hr_HR"))
@@ -161,7 +161,7 @@ struct AttendanceCard: View {
         let counted = rows.filter { $0.1 != Attendance.unset }.count
         return Card {
             HStack {
-                Text("DOLAZAK").font(C.display(15)).foregroundColor(C.carbon)
+                Text("DOLAZAK").font(C.display(15)).foregroundColor(C.ink)
                 Spacer()
                 Text("\(yes)/\(counted)").font(C.display(16)).foregroundColor(yes > 0 ? C.green : C.muted)
             }
@@ -176,12 +176,12 @@ struct AttendanceCard: View {
 
     private func chip(_ at: JSON, _ st: Int) -> some View {
         let aid = at.string("id"), sid = session.string("id")
-        let fg: Color = st == Attendance.yes ? .white : st == Attendance.no ? C.red : C.carbon
+        let fg: Color = st == Attendance.yes ? .white : st == Attendance.no ? C.red : C.ink
         let border: Color = st == Attendance.yes ? C.green : st == Attendance.no ? C.red : C.stone
         return Text((st == Attendance.yes ? "✓  " : st == Attendance.no ? "✕  " : "") + Fmt.shortName(at.string("name")))
             .font(C.bold(14)).foregroundColor(fg)
             .padding(.horizontal, 12).frame(minHeight: 38)
-            .background(Capsule().fill(st == Attendance.yes ? C.green : C.white))
+            .background(Capsule().fill(st == Attendance.yes ? C.green : C.card))
             .overlay(Capsule().stroke(border, lineWidth: 1.2))
             .contentShape(Capsule())
             .onTapGesture { Attendance.set(store, sid, aid, st != Attendance.yes) }
@@ -203,12 +203,12 @@ struct ResultCard: View {
         let sum = (t.km > 0 ? Fmt.n2(t.km) + " km" : "") + (t.km > 0 && t.kg > 0 ? " · " : "") + (t.kg > 0 ? Fmt.n(t.kg) + " kg" : "")
         Card {
             HStack(alignment: .top) {
-                Text(athlete.string("name")).font(C.bold(15)).foregroundColor(C.carbon)
+                Text(athlete.string("name")).font(C.bold(15)).foregroundColor(C.ink)
                 Spacer()
                 if t.done > 0 {
                     Tag(text: sum.isEmpty ? "Upisano" : sum, fg: .white, bg: C.green)
                 } else {
-                    Tag(text: "Nije upisao", fg: C.carbon, bg: C.chalk)
+                    Tag(text: "Nije upisao", fg: C.ink, bg: C.chalk)
                 }
             }
             if let r = result {
@@ -235,8 +235,8 @@ struct ResultCard: View {
                 let lines = Model.setLines(it, en, rpe: !it.string("rpe").isEmpty)
                 VStack(alignment: .leading, spacing: 2) {
                     Label12(Model.title(it))
-                    if lines.isEmpty { Text("–").font(C.bold(14)).foregroundColor(C.carbon) }
-                    ForEach(lines, id: \.self) { Text($0).font(C.bold(14)).foregroundColor(C.carbon) }
+                    if lines.isEmpty { Text("–").font(C.bold(14)).foregroundColor(C.ink) }
+                    ForEach(lines, id: \.self) { Text($0).font(C.bold(14)).foregroundColor(C.ink) }
                 }
                 .padding(.top, 10)
             }
@@ -249,7 +249,7 @@ struct ResultCard: View {
         let vals = times.map { Fmt.parseTime($0) }.filter { $0 > 0 }
         return VStack(alignment: .leading, spacing: 2) {
             Label12(Model.title(it) + (target > 0 ? "  ·  cilj " + it.string("target") : ""))
-            Text(times.map { $0.isEmpty ? "–" : $0 }.joined(separator: "   ")).font(C.bold(en.count > 5 ? 13 : 14)).foregroundColor(C.carbon)
+            Text(times.map { $0.isEmpty ? "–" : $0 }.joined(separator: "   ")).font(C.bold(en.count > 5 ? 13 : 14)).foregroundColor(C.ink)
             if !vals.isEmpty {
                 Text("prosjek " + Fmt.time(vals.reduce(0, +) / Double(vals.count))).font(C.text(12)).foregroundColor(C.muted)
             }
@@ -263,7 +263,7 @@ struct ResultCard: View {
         let splits = run["splits"].list.map { Fmt.clock($0.doubleValue()) }
         return VStack(alignment: .leading, spacing: 2) {
             Label12("Trčanje " + Model.title(it) + (it.string("pace").isEmpty ? "" : "  ·  cilj " + it.string("pace") + "/km"))
-            Text(Model.runLine(run)).font(C.bold(14)).foregroundColor(tp > 0 && pace > 0 ? C.pace(Model.paceLevel(pace, tp)) : C.carbon)
+            Text(Model.runLine(run)).font(C.bold(14)).foregroundColor(tp > 0 && pace > 0 ? C.pace(Model.paceLevel(pace, tp)) : C.ink)
             if !splits.isEmpty { Text("po km: " + splits.joined(separator: "  ")).font(C.text(12)).foregroundColor(C.muted) }
         }
     }

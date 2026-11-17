@@ -28,9 +28,12 @@ final class Nav: ObservableObject {
     @Published var openWellness = false
     /// Set when a logout would drop changes that never reached the server.
     @Published var unsent = 0
+    /// Tamna tema, switched in Postavke.
+    @Published var dark = Prefs.dark
 }
 
-/// Screenshot mode for the build machine: `-shot training|session|journal|wellness|progress|board|login|settings`.
+/// Screenshot mode for the build machine: `-shot training|session|journal|wellness|progress|board|login|settings`,
+/// "c-…" for the coach's screens. `-dark YES` shows them in the dark theme (it lands in UserDefaults).
 enum Shot {
     static var name: String? {
         let a = ProcessInfo.processInfo.arguments
@@ -67,13 +70,13 @@ struct COACHApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .preferredColorScheme(.light)
         }
     }
 }
 
 struct RootView: View {
     @ObservedObject var store = Store.shared
+    @ObservedObject var nav = Nav.shared
     @Environment(\.scenePhase) private var phase
     @State private var timer = Timer.publish(every: 45, on: .main, in: .common).autoconnect()
 
@@ -84,6 +87,7 @@ struct RootView: View {
                 .id(store.sessionVersion)
             ToastOverlay()
         }
+        .preferredColorScheme(nav.dark ? .dark : .light)
         .onChange(of: phase) { p in
             if p == .active { refresh() }
         }

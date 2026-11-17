@@ -29,7 +29,13 @@ enum Demo {
             Prefs.setProfile(name: team[0].1, role: "athlete")
         }
         let s = Store.shared
-        if s.all(Store.sessions).isEmpty { seed(s) }
+        if s.all(Store.sessions).isEmpty {
+            seed(s)
+        } else if s.doc(Store.config, Comp.doc) == nil {
+            // a demo started before competitions existed: add them to what's there
+            competitions(s)
+            s.seedDone()
+        }
     }
 
     static let code = "TRK426"
@@ -189,7 +195,59 @@ enum Demo {
                                         "wellness": w, "wellnessLabels": labels, "wellnessDone": true])
             }
         }
+        competitions(s)
         s.seedDone()
+    }
+
+    /// Four disciplines, who competes in what, and three seasons of made-up results; and a picked set of
+    /// leaderboards, so the demo shows both of the coach's lists in use.
+    private static func competitions(_ s: Store) {
+        var rnd = Rnd(55)
+        let list: [(String, String, String)] = [
+            ("d100", "100 m", Comp.time), ("d200", "200 m", Comp.time), ("d400", "400 m", Comp.time), ("ddalj", "Skok u dalj", Comp.length),
+        ]
+        // athlete, discipline, what they are good for this season
+        let who: [(Int, String, Double)] = [
+            (0, "d100", 10.95), (0, "d200", 22.10), (1, "d100", 11.12), (1, "d200", 22.48), (2, "d200", 22.95),
+            (2, "d400", 49.80), (3, "d400", 50.60), (3, "ddalj", 6.85), (4, "ddalj", 5.62), (4, "d100", 12.45),
+        ]
+        let meets: [(Int, Int, String)] = [
+            (5, 10, "Miting Zagreb"), (5, 24, "Miting Rijeka"), (6, 7, "Kup Hrvatske"), (6, 21, "Miting Split"),
+            (7, 12, "Prvenstvo Hrvatske"), (8, 2, "Miting Osijek"), (9, 6, "Finale lige"),
+        ]
+        let today = Fmt.today()
+        let year = Comp.thisYear()
+        var of = JSON.object()
+        var results: [JSON] = []
+        for (ai, did, best) in who {
+            let aid = team[ai].0
+            var mine = of[aid].list
+            mine.append(.str(did))
+            of[aid] = .arr(mine)
+            let time = did != "ddalj"
+            for y in (year - 2)...year {
+                for (mi, meet) in meets.enumerated() {
+                    let iso = String(format: "%04d-%02d-%02d", y, meet.0, meet.1)
+                    if iso >= today || rnd.float() < 0.3 { continue }
+                    // earlier seasons and the start of a season are a little worse; the form peaks in July
+                    let age: Double = Double(year - y) * 0.018 + abs(Double(mi) - 4) * 0.004
+                    let noise: Double = abs(rnd.gauss()) * 0.006
+                    let slower: Double = best * (1 + age + noise)
+                    let shorter: Double = best * (1 - age * 1.4 - noise * 1.6)
+                    let v: Double = time ? slower : shorter
+                    results.append(["id": .str("r\(results.count)"), "a": .str(aid), "d": .str(did), "date": .str(iso),
+                                    "v": .num((v * 100).rounded() / 100), "meet": .str(meet.2)])
+                }
+            }
+        }
+        let ds: [JSON] = list.map { ["id": .str($0.0), "name": .str($0.1), "unit": .str($0.2)] }
+        s.seedPut(Store.config, ["id": .str(Comp.doc), "list": .arr(ds), "of": of, "results": .arr(results)])
+        // the coach left the small accessory lifts and the odd distances without a leaderboard
+        let on: [String] = [
+            Progress.gymKey("Čučanj"), Progress.gymKey("Mrtvo dizanje"), Progress.gymKey("Bench press"),
+            Progress.runKey(60, "blok"), Progress.runKey(150, "let"), Progress.runKey(400, ""), Progress.gpsKey(8),
+        ]
+        s.seedPut(Store.config, ["id": .str(BoardPick.doc), "custom": true, "on": .arr(on.map { .str($0) })])
     }
 
     /// Three years of made-up history before the demo weeks, so the progress graphs have something to show.
@@ -201,7 +259,8 @@ enum Demo {
         let span = Double(endDay - startDay)
         var recs: [JSON] = []
         let names = ["Bench press", "Čučanj", "Mrtvo dizanje"]
-        let now1rm = [70 / skill * (1 + 8.0 / 30), 100 / skill * (1 + 7.0 / 30), 140 / skill * (1 + 6.0 / 30)]
+        // what the demo weeks' sets stand for: bench 6 @8, squat 5 @8, deadlift 4 @8
+        let now1rm = [Progress.e1rm(70 / skill, 6, 8), Progress.e1rm(100 / skill, 5, 8), Progress.e1rm(140 / skill, 4, 8)]
         let repsPick = [3, 4, 5, 5, 6]
         let rpePick = [7, 7.5, 8, 8, 8.5, 9]
         func iso(_ day: Int) -> String {
@@ -216,7 +275,7 @@ enum Demo {
                 let trueMax = now1rm[g] * (0.76 + 0.2 * (1 - pow(1 - f, 1.6))) - (m == 7 || m == 8 ? 4 : 0)
                 let reps = repsPick[rnd.int(repsPick.count)]
                 let rpe = rpePick[rnd.int(rpePick.count)]
-                let kg = ((trueMax * (1 + rnd.gauss() * 0.02) / (1 + (Double(reps) + 10 - rpe) / 30)) / 2.5).rounded() * 2.5
+                let kg = ((trueMax * (1 + rnd.gauss() * 0.02) * Progress.share(Double(reps), rpe)) / 2.5).rounded() * 2.5
                 recs.append(["kind": "gym", "name": .str(names[g]), "date": .str(iso(d)), "kg": .str(kgText(kg)), "reps": .str("\(reps)"),
                              "rpe": .str(kgText(rpe)), "plain": true])
                 d += 6 + rnd.int(4)

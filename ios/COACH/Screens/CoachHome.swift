@@ -8,7 +8,7 @@ enum CoachRoute: Hashable {
     case logFor(String, String, String)
     case athlete(String)
     case series(String, String)
-    case team, groups, attendance, questionnaire, settings
+    case team, groups, attendance, questionnaire, settings, boards, comps
 }
 
 /// Coach app: TRENINZI / SPORTAŠI / LJESTVICE / VIŠE (CoachHome.java).
@@ -26,7 +26,7 @@ struct CoachHome: View {
                     switch tab {
                     case 0: CoachPlanTab(path: $path, week: $week)
                     case 1: AthletesTab(path: $path)
-                    case 2: BoardTab()
+                    case 2: BoardTab(onEdit: { path.append(CoachRoute.boards) })
                     default: MoreTab(path: $path)
                     }
                 }
@@ -46,7 +46,7 @@ struct CoachHome: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(C.carbon, for: .navigationBar)
+            .toolbarBackground(C.header, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .navigationDestination(for: CoachRoute.self) { r in CoachDestination(route: r, path: $path) }
@@ -69,6 +69,11 @@ struct CoachHome: View {
             if let g = gym { path.append(CoachRoute.editSession(g.string("id"))) }
         case "c-athlete":
             if let a = Groups.byName(store.all(Store.athletes)).first { tab = 1; path.append(CoachRoute.athlete(a.string("id"))) }
+        case "c-boards": tab = 3; path.append(CoachRoute.boards)
+        case "c-comps": tab = 3; path.append(CoachRoute.comps)
+        case "c-comp":
+            if let s = Comp.series(store, Demo.me).first { tab = 1; path.append(CoachRoute.series(Demo.me, s.key)) }
+        case "c-settings": path.append(CoachRoute.settings)
         default: break
         }
     }
@@ -92,6 +97,8 @@ struct CoachDestination: View {
         case .attendance: AttendanceView(path: $path)
         case .questionnaire: QuestionnaireEditView()
         case .settings: SettingsView()
+        case .boards: BoardPickView()
+        case .comps: CompsView()
         }
     }
 }
@@ -100,7 +107,7 @@ struct CoachDestination: View {
 struct DemoSwitch: View {
     var body: some View {
         Button { Demo.switchRole() } label: {
-            Text(Prefs.isCoach ? "TRENER ⇄" : "SPORTAŠ ⇄").font(.system(size: 11, weight: .heavy)).foregroundColor(C.carbon)
+            Text(Prefs.isCoach ? "TRENER ⇄" : "SPORTAŠ ⇄").font(.system(size: 11, weight: .heavy)).foregroundColor(C.night)
                 .padding(.horizontal, 9).padding(.vertical, 5)
                 .background(Capsule().fill(C.coral))
         }
@@ -124,7 +131,7 @@ struct GroupSwitcher: View {
                     Button { path.append(CoachRoute.groups) } label: {
                         Text("+").font(C.bold(20)).foregroundColor(C.blue)
                             .frame(width: 40, height: 40)
-                            .background(Circle().fill(C.white))
+                            .background(Circle().fill(C.card))
                             .overlay(Circle().stroke(C.stone, lineWidth: 1.2))
                     }
                     .buttonStyle(.plain)
@@ -141,12 +148,12 @@ struct GroupSwitcher: View {
         } label: {
             HStack(spacing: 6) {
                 if on { Circle().fill(C.coral).frame(width: 8, height: 8) }
-                Text(g.string("name").uppercased()).font(C.display(14)).foregroundColor(on ? .white : C.carbon)
-                Text("\(Groups.members(store, g.string("id")).count)").font(C.bold(13)).foregroundColor(on ? C.mutedLight : C.muted)
+                Text(g.string("name").uppercased()).font(C.display(14)).foregroundColor(on ? C.onSel : C.ink)
+                Text("\(Groups.members(store, g.string("id")).count)").font(C.bold(13)).foregroundColor(on ? C.onSelDim : C.muted)
             }
             .padding(.horizontal, 14).frame(height: 40)
-            .background(Capsule().fill(on ? C.carbon : C.white))
-            .overlay(Capsule().stroke(on ? C.carbon : C.stone, lineWidth: 1.2))
+            .background(Capsule().fill(on ? C.sel : C.card))
+            .overlay(Capsule().stroke(on ? C.sel : C.stone, lineWidth: 1.2))
         }
         .buttonStyle(.plain)
     }
@@ -190,7 +197,7 @@ struct CoachPlanTab: View {
             roundButton("chevron.left") { week = Fmt.addDays(week, -7) }
             Button { week = Fmt.monday(Date()) } label: {
                 VStack(spacing: 1) {
-                    Text(Fmt.dm(week) + " – " + Fmt.dm(Fmt.addDays(week, 6))).font(C.display(16)).foregroundColor(C.carbon)
+                    Text(Fmt.dm(week) + " – " + Fmt.dm(Fmt.addDays(week, 6))).font(C.display(16)).foregroundColor(C.ink)
                     Label12(thisWeek ? "Ovaj tjedan" : "Tjedan")
                 }
                 .frame(maxWidth: .infinity)
@@ -204,7 +211,7 @@ struct CoachPlanTab: View {
     private func dayHeader(_ d: Date, _ iso: String) -> some View {
         HStack {
             Text((Fmt.dayLong(d) + " " + Fmt.dm(d)).uppercased()).font(C.display(14))
-                .foregroundColor(iso == Fmt.today() ? C.coral : C.carbon)
+                .foregroundColor(iso == Fmt.today() ? C.coral : C.ink)
             Spacer()
             Button { path.append(CoachRoute.newSession(iso)) } label: {
                 Text("+ DODAJ").font(C.bold(13)).foregroundColor(C.blue).padding(.vertical, 6).padding(.leading, 10)
@@ -214,12 +221,12 @@ struct CoachPlanTab: View {
     }
 }
 
-func roundButton(_ icon: String, fg: Color = C.carbon, bg: Color = C.white, size: CGFloat = 44, _ action: @escaping () -> Void) -> some View {
+func roundButton(_ icon: String, fg: Color = C.ink, bg: Color = C.card, size: CGFloat = 44, _ action: @escaping () -> Void) -> some View {
     Button(action: action) {
         Image(systemName: icon).font(.system(size: 15, weight: .bold)).foregroundColor(fg)
             .frame(width: size, height: size)
             .background(Circle().fill(bg))
-            .overlay(Circle().stroke(bg == C.white ? C.stone : .clear, lineWidth: 1))
+            .overlay(Circle().stroke(bg == C.card ? C.stone : .clear, lineWidth: 1))
     }
     .buttonStyle(.plain)
 }
@@ -237,9 +244,9 @@ struct CoachSessionCard: View {
         let own = Model.ownNames(session, team)
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
-                Text(session.string("title", "Trening").uppercased()).font(C.display(15)).foregroundColor(C.carbon)
+                Text(session.string("title", "Trening").uppercased()).font(C.display(15)).foregroundColor(C.ink)
                 Spacer()
-                Tag(text: "\(done)/\(team.count) upisalo", fg: done > 0 ? .white : C.carbon, bg: done > 0 ? C.green : C.chalk)
+                Tag(text: "\(done)/\(team.count) upisalo", fg: done > 0 ? .white : C.ink, bg: done > 0 ? C.green : C.chalk)
             }
             if !items.isEmpty { Text(items).font(C.text(13)).foregroundColor(C.muted).padding(.top, 4) }
             if !groups.isEmpty { Tag(text: groups, fg: C.blue, bg: C.blueSoft).padding(.top, 6) }
@@ -248,7 +255,7 @@ struct CoachSessionCard: View {
                 HStack {
                     Spacer()
                     Button { path.append(CoachRoute.logbook(session.string("id"))) } label: {
-                        Text("✎  ZAPISNIK").font(C.display(13)).tracking(0.8).foregroundColor(C.carbon)
+                        Text("✎  ZAPISNIK").font(C.display(13)).tracking(0.8).foregroundColor(C.night)
                             .padding(.horizontal, 14).padding(.vertical, 9)
                             .background(Capsule().fill(C.coral))
                     }
@@ -259,7 +266,7 @@ struct CoachSessionCard: View {
         }
         .padding(.horizontal, 12).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14).fill(C.white))
+        .background(RoundedRectangle(cornerRadius: 14).fill(C.card))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(C.stone, lineWidth: 1))
         .contentShape(Rectangle())
         .onTapGesture { path.append(CoachRoute.session(session.string("id"))) }
@@ -281,10 +288,10 @@ struct AthletesTab: View {
                 TeamStrip(path: $path)
                 if !free.isEmpty {
                     MenuCard(title: "\(free.count) bez grupe", sub: "Stavi u grupu: " + free.map { Fmt.shortName($0.string("name")) }.joined(separator: ", "),
-                             bg: C.coral, fg: C.carbon) { path.append(CoachRoute.groups) }
+                             bg: C.coral, fg: C.night) { path.append(CoachRoute.groups) }
                 }
                 if !all.isEmpty { AttendanceRow(team: all) { path.append(CoachRoute.attendance) } }
-                Text(("Danas, " + Fmt.dm(Date())).uppercased()).font(C.display(20)).foregroundColor(C.carbon).padding(.top, 4)
+                Text(("Danas, " + Fmt.dm(Date())).uppercased()).font(C.display(20)).foregroundColor(C.ink).padding(.top, 4)
                 ForEach(all, id: \.idKey) { at in
                     AthleteTodayCard(athlete: at).onTapGesture { path.append(CoachRoute.athlete(at.string("id"))) }
                 }
@@ -296,7 +303,7 @@ struct AthletesTab: View {
                     }
                 }
                 if !free.isEmpty {
-                    Text("BEZ GRUPE").font(C.display(15)).foregroundColor(C.carbon).padding(.top, 10)
+                    Text("BEZ GRUPE").font(C.display(15)).foregroundColor(C.ink).padding(.top, 10)
                     ForEach(free, id: \.idKey) { at in
                         AthleteTodayCard(athlete: at).onTapGesture { path.append(CoachRoute.athlete(at.string("id"))) }
                     }
@@ -320,17 +327,17 @@ struct AthleteTodayCard: View {
             HStack(spacing: 10) {
                 Initials(name: athlete.string("name"), size: 36)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(athlete.string("name")).font(C.bold(15)).foregroundColor(C.carbon)
+                    Text(athlete.string("name")).font(C.bold(15)).foregroundColor(C.ink)
                     Text(line(d)).font(C.text(12)).foregroundColor(C.muted)
                 }
                 Spacer(minLength: 4)
-                Tag(text: w ? "Upitnik ✓" : "Upitnik –", fg: w ? .white : C.carbon, bg: w ? C.green : C.coralSoft)
+                Tag(text: w ? "Upitnik ✓" : "Upitnik –", fg: w ? .white : C.ink, bg: w ? C.green : C.coralSoft)
             }
             if !flags.isEmpty { Text(flags).font(C.bold(13)).foregroundColor(C.red) }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14).fill(C.white))
+        .background(RoundedRectangle(cornerRadius: 14).fill(C.card))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(C.stone, lineWidth: 1))
         .contentShape(Rectangle())
     }
@@ -394,10 +401,10 @@ struct AttendanceRow: View {
                 }
                 Spacer()
                 if pct >= 0 { Text("\(pct) %").font(C.display(22)).foregroundColor(Attendance.color(pct)) }
-                Text("  →").font(C.display(20)).foregroundColor(C.carbon)
+                Text("  →").font(C.display(20)).foregroundColor(C.ink)
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(RoundedRectangle(cornerRadius: 14).fill(C.white))
+            .background(RoundedRectangle(cornerRadius: 14).fill(C.card))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(C.stone, lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -416,7 +423,7 @@ struct TeamStrip: View {
             }
             Spacer()
             ShareLink(item: Team.inviteText) {
-                Text("POZOVI").font(C.display(14)).foregroundColor(C.carbon)
+                Text("POZOVI").font(C.display(14)).foregroundColor(C.night)
                     .padding(.horizontal, 18).frame(height: 40)
                     .background(Capsule().fill(C.coral))
             }
@@ -458,11 +465,15 @@ struct MoreTab: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                MenuCard(title: "Tim i pozivnice", sub: "Kod tima, poziv za sportaše i tko je u timu.", bg: C.coral, fg: C.carbon) { path.append(CoachRoute.team) }
+                MenuCard(title: "Tim i pozivnice", sub: "Kod tima, poziv za sportaše i tko je u timu.", bg: C.coral, fg: C.night) { path.append(CoachRoute.team) }
                 MenuCard(title: "Grupe", sub: Groups.any(store) ? "Tko je u kojoj grupi. Novi sportaši čekaju ovdje."
-                         : "Više grupa sportaša: svaka svoji treninzi, dolasci i ljestvice.", bg: C.white, fg: C.carbon) { path.append(CoachRoute.groups) }
-                MenuCard(title: "Dolasci", sub: "Tko je koliko puta došao na trening: 30 dana, 90 dana ili sve.", bg: C.white, fg: C.carbon) { path.append(CoachRoute.attendance) }
-                MenuCard(title: "Jutarnji upitnik", sub: "Sastavi pitanja koja sportaši dobivaju svako jutro.", bg: C.white, fg: C.carbon) { path.append(CoachRoute.questionnaire) }
+                         : "Više grupa sportaša: svaka svoji treninzi, dolasci i ljestvice.", bg: C.card, fg: C.ink) { path.append(CoachRoute.groups) }
+                MenuCard(title: "Natjecanja", sub: "Čime se tko bavi i rezultati s natjecanja. Svaka disciplina ima svoju ljestvicu i graf sezone.",
+                         bg: C.card, fg: C.ink) { path.append(CoachRoute.comps) }
+                MenuCard(title: "Ljestvice", sub: BoardPick.custom(store) ? "Ljestvicu imaju samo vježbe koje si odabrao. Promijeni odabir."
+                         : "Odaberi koje vježbe imaju ljestvicu. Sad je ima svaka.", bg: C.card, fg: C.ink) { path.append(CoachRoute.boards) }
+                MenuCard(title: "Dolasci", sub: "Tko je koliko puta došao na trening: 30 dana, 90 dana ili sve.", bg: C.card, fg: C.ink) { path.append(CoachRoute.attendance) }
+                MenuCard(title: "Jutarnji upitnik", sub: "Sastavi pitanja koja sportaši dobivaju svako jutro.", bg: C.card, fg: C.ink) { path.append(CoachRoute.questionnaire) }
                 MenuCard(title: exporting ? "Izrađujem Excel…" : "Izvoz u Excel", sub: "Svaki sportaš svoja kartica: progresija po vježbi, prolazi, km i tone za sezonu.",
                          bg: C.carbon, fg: .white) { export() }
             }
@@ -500,13 +511,13 @@ struct MenuCard: View {
                     Spacer()
                     Text("→").font(C.display(22)).foregroundColor(fg == .white ? C.coral : fg)
                 }
-                Text(sub).font(C.text(13)).foregroundColor(fg == .white ? C.mutedLight : (bg == C.coral ? C.carbon : C.muted))
+                Text(sub).font(C.text(13)).foregroundColor(fg == .white ? C.mutedLight : (bg == C.coral ? C.night : C.muted))
                     .multilineTextAlignment(.leading)
             }
             .padding(.horizontal, 14).padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 14).fill(bg))
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(bg == C.white ? C.stone : bg, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(bg == C.card ? C.stone : bg, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }

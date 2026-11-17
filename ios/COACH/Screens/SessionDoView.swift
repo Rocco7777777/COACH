@@ -36,7 +36,7 @@ struct SessionDoView: View {
         .background(C.chalk)
         .navigationTitle(athleteName.map { Fmt.shortName($0) } ?? session?.string("title", "Trening") ?? "Trening")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .keyboardDone()
@@ -181,7 +181,7 @@ struct SessionDoView: View {
     @ViewBuilder private func headerContent(_ it: JSON, accent: Color) -> some View {
         HStack(spacing: 8) {
             RoundedRectangle(cornerRadius: 2).fill(accent).frame(width: 4, height: 18)
-            Text(Model.title(it).uppercased()).font(C.display(17)).foregroundColor(C.carbon)
+            Text(Model.title(it).uppercased()).font(C.display(17)).foregroundColor(C.ink)
             Spacer()
             if let key = Progress.keyFor(it) {
                 NavigationLink(value: Route.series(key)) {
@@ -194,11 +194,11 @@ struct SessionDoView: View {
         if !plan.isEmpty { Text(plan).font(C.bold(13)).foregroundColor(C.muted).padding(.top, 3) }
         let own = Model.ownText(it, me)
         if !own.isEmpty { Text("Za tebe:  " + own).font(C.bold(13)).foregroundColor(C.own).padding(.top, 3) }
-        if !it.string("note").isEmpty { Text(it.string("note")).font(C.text(13)).foregroundColor(C.carbon).padding(.top, 2) }
+        if !it.string("note").isEmpty { Text(it.string("note")).font(C.text(13)).foregroundColor(C.ink).padding(.top, 2) }
     }
 
     private func repNum(_ i: Int) -> some View {
-        Text("\(i + 1)").font(C.display(14)).foregroundColor(C.carbon)
+        Text("\(i + 1)").font(C.display(14)).foregroundColor(C.ink)
             .frame(width: 28, height: 28)
             .background(Circle().fill(C.chalk))
             .overlay(Circle().stroke(C.stone, lineWidth: 1))
@@ -266,10 +266,10 @@ struct SessionDoView: View {
                         let v = e.string("rpe")
                         let off = !v.isEmpty && Fmt.num(v) != Fmt.num(planned)
                         Button { rpePick = RpePick(itemId: id, index: i, planned: planned) } label: {
-                            Text(SessionDoView.rpeLabel(v)).font(C.bold(15)).foregroundColor(off ? .white : C.carbon)
+                            Text(SessionDoView.rpeLabel(v)).font(C.bold(15)).foregroundColor(off ? .white : C.ink)
                                 .frame(width: 54, height: 44)
-                                .background(RoundedRectangle(cornerRadius: 12).fill(off ? C.blue : C.chalk))
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(off ? C.blue : C.stone, lineWidth: 1))
+                                .background(RoundedRectangle(cornerRadius: 12).fill(off ? C.blueFill : C.chalk))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(off ? C.blueFill : C.stone, lineWidth: 1))
                         }
                         .buttonStyle(.plain)
                     }
@@ -280,7 +280,7 @@ struct SessionDoView: View {
                         if !done { UIImpactFeedbackGenerator(style: .medium).impactOccurred() }
                     } label: {
                         Image(systemName: "checkmark").font(.system(size: 17, weight: .heavy))
-                            .foregroundColor(done ? .white : C.mutedLight)
+                            .foregroundColor(done ? .white : C.faint)
                             .frame(width: 44, height: 44)
                             .background(Circle().fill(done ? C.green : C.chalk))
                             .scaleEffect(done ? 1.0 : 0.94)
@@ -300,7 +300,7 @@ struct SessionDoView: View {
         Card {
             headerContent(it, accent: C.green)
             if Model.recorded(run) {
-                Text(Model.runLine(run)).font(C.bold(15)).foregroundColor(C.carbon).padding(.top, 10)
+                Text(Model.runLine(run)).font(C.bold(15)).foregroundColor(C.ink).padding(.top, 10)
             } else {
                 TypedRun(km0: run.double("km"), s0: run.double("s"), target: Fmt.parseTime(it.string("pace"))) { km, s in
                     var e = result["entries"][id][0]
@@ -408,7 +408,7 @@ struct TimeFieldView: View {
                         if !(autoMin && m == "\(hintMin)") { autoMin = false }
                         emit()
                     }
-                Text(":").font(C.display(20)).foregroundColor(C.carbon)
+                Text(":").font(C.display(20)).foregroundColor(C.ink)
             }
             TextField(hintTotal > 0 ? Fmt.secs(hintTotal - Double(hintMin * 60), pad: hintMin > 0) : "sek", text: $sec)
                 .keyboardType(.decimalPad).input(center: true).frame(width: 80)
@@ -451,16 +451,16 @@ struct RpeSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("KOLIKO JE BILO TEŠKO?").font(C.display(18)).foregroundColor(C.carbon)
+            Text("KOLIKO JE BILO TEŠKO?").font(C.display(18)).foregroundColor(C.ink)
             Text("Trener je zadao @" + Fmt.n(Fmt.num(planned)) + " (" + Model.rir(planned) + ").").font(C.text(13)).foregroundColor(C.muted)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 8) {
                 ForEach(RpeSheet.values, id: \.self) { v in
                     let on = !now.isEmpty && Fmt.num(now) == Fmt.num(v)
                     Button { pick(v) } label: {
-                        Text(Fmt.n(Fmt.num(v))).font(C.bold(16)).foregroundColor(on ? .white : C.carbon)
+                        Text(Fmt.n(Fmt.num(v))).font(C.bold(16)).foregroundColor(on ? C.onSel : C.ink)
                             .frame(maxWidth: .infinity, minHeight: 44)
-                            .background(Capsule().fill(on ? C.carbon : C.white))
-                            .overlay(Capsule().stroke(on ? C.carbon : C.stone, lineWidth: 1.2))
+                            .background(Capsule().fill(on ? C.sel : C.card))
+                            .overlay(Capsule().stroke(on ? C.sel : C.stone, lineWidth: 1.2))
                     }
                     .buttonStyle(.plain)
                 }

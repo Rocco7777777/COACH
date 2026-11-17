@@ -41,7 +41,7 @@ struct AthleteHome: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(C.carbon, for: .navigationBar)
+            .toolbarBackground(C.header, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .navigationDestination(for: Route.self) { r in
@@ -91,8 +91,24 @@ struct AthleteHome: View {
             let pick = mine.filter { want.isEmpty ? $0.string("date") == today : ($0.string("date") <= today && $0["items"].list.contains { $0.string("type") == want }) }
                 .sorted { $0.string("date") > $1.string("date") }.first
             if let p = pick { path.append(Route.session(p.string("id"))) }
+        case "track":
+            // the latest session with reps that already has my splits
+            let me = Prefs.athleteId
+            let today = Fmt.today()
+            let past = Groups.visible(store, me, store.all(Store.sessions)).filter { $0.string("date") < today }
+            let pick = past.filter { ses in
+                ses["items"].list.contains { $0.string("type") == "run" } && store.doc(Store.results, Model.resultId(ses.string("id"), me)) != nil
+            }
+            .sorted { $0.string("date") > $1.string("date") }.first
+            if let p = pick { path.append(Route.session(p.string("id"))) }
         case "series":
-            if let first = Progress.build(store, Prefs.athleteId).first { tab = 2; path.append(Route.series(first.key)) }
+            let all = Progress.build(store, Prefs.athleteId)
+            if let first = all.first(where: { $0.kind == Progress.gym }) ?? all.first { tab = 2; path.append(Route.series(first.key)) }
+        case "comp":
+            if let first = Progress.build(store, Prefs.athleteId).first(where: { $0.kind == Progress.comp }) {
+                tab = 2
+                path.append(Route.series(first.key))
+            }
         default: break
         }
     }
@@ -104,9 +120,9 @@ struct HeaderTitle: View {
             TrackLogo(size: 18)
             Text("COACH").font(C.display(19)).foregroundColor(.white)
             if Prefs.demoMode && !Shot.store {
-                Tag(text: "DEMO", fg: C.carbon, bg: C.coral)
+                Tag(text: "DEMO", fg: C.night, bg: C.coral)
             } else if Prefs.isCoach {
-                Tag(text: "TRENER", fg: C.carbon, bg: C.coral)
+                Tag(text: "TRENER", fg: C.night, bg: C.coral)
             }
         }
     }
@@ -123,7 +139,7 @@ struct TabBar: View {
                 } label: {
                     VStack(spacing: 6) {
                         Capsule().fill(selected == i ? C.coral : .clear).frame(width: 28, height: 4)
-                        Text(titles[i]).font(C.display(11)).foregroundColor(selected == i ? C.carbon : C.muted)
+                        Text(titles[i]).font(C.display(11)).foregroundColor(selected == i ? C.ink : C.muted)
                             .lineLimit(1).minimumScaleFactor(0.7)
                     }
                     .frame(maxWidth: .infinity, minHeight: 50)
@@ -133,7 +149,7 @@ struct TabBar: View {
             }
         }
         .padding(.bottom, 2)
-        .background(C.white.ignoresSafeArea(edges: .bottom))
+        .background(C.card.ignoresSafeArea(edges: .bottom))
         .overlay(Rectangle().fill(C.stone).frame(height: 1), alignment: .top)
     }
 }
@@ -156,13 +172,13 @@ struct DateStrip: View {
                         let isToday = iso == Fmt.today()
                         Button { day = iso } label: {
                             VStack(spacing: 3) {
-                                Text(Fmt.dayShort(d).uppercased()).font(.system(size: 10, weight: .bold)).foregroundColor(on ? C.mutedLight : C.muted)
-                                Text("\(Fmt.cal.component(.day, from: d))").font(C.display(18)).foregroundColor(on ? .white : C.carbon)
+                                Text(Fmt.dayShort(d).uppercased()).font(.system(size: 10, weight: .bold)).foregroundColor(on ? C.onSelDim : C.muted)
+                                Text("\(Fmt.cal.component(.day, from: d))").font(C.display(18)).foregroundColor(on ? C.onSel : C.ink)
                                 Circle().fill(marked.contains(iso) ? (on ? C.coral : C.coral) : .clear).frame(width: 5, height: 5)
                             }
                             .frame(width: 44, height: 62)
-                            .background(RoundedRectangle(cornerRadius: 12).fill(on ? C.carbon : C.white))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(isToday && !on ? C.coral : (on ? C.carbon : C.stone), lineWidth: isToday && !on ? 2 : 1))
+                            .background(RoundedRectangle(cornerRadius: 12).fill(on ? C.sel : C.card))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(isToday && !on ? C.coral : (on ? C.sel : C.stone), lineWidth: isToday && !on ? 2 : 1))
                         }
                         .buttonStyle(.plain)
                         .id(iso)
@@ -195,18 +211,18 @@ struct TrainingTab: View {
                 VStack(alignment: .leading, spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Bok \(Fmt.firstName(Prefs.name)),").font(C.text(13)).foregroundColor(C.muted)
-                        Text(Fmt.niceRelative(day).uppercased()).font(C.display(22)).foregroundColor(C.carbon)
+                        Text(Fmt.niceRelative(day).uppercased()).font(C.display(22)).foregroundColor(C.ink)
                     }
                     WeekCard(sessions: sessions)
                     if day == Fmt.today() && !Wellness.done(store, me, Fmt.today()) {
                         Button(action: openWellness) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("JUTARNJI UPITNIK").font(C.display(15)).foregroundColor(C.carbon)
-                                    Text("30 sekundi. San, upala, raspoloženje.").font(C.text(12)).foregroundColor(C.carbon)
+                                    Text("JUTARNJI UPITNIK").font(C.display(15)).foregroundColor(C.night)
+                                    Text("30 sekundi. San, upala, raspoloženje.").font(C.text(12)).foregroundColor(C.night)
                                 }
                                 Spacer()
-                                Text("→").font(C.display(24)).foregroundColor(C.carbon)
+                                Text("→").font(C.display(24)).foregroundColor(C.night)
                             }
                             .padding(.horizontal, 14).padding(.vertical, 10)
                             .background(RoundedRectangle(cornerRadius: 14).fill(C.coral))
@@ -308,16 +324,16 @@ struct SessionCard: View {
         let t = Model.totals(session, store.doc(Store.results, Model.resultId(session.string("id"), me)))
         Card {
             HStack {
-                Text(session.string("title", "Trening").uppercased()).font(C.display(17)).foregroundColor(C.carbon)
+                Text(session.string("title", "Trening").uppercased()).font(C.display(17)).foregroundColor(C.ink)
                 Spacer()
-                if t.done > 0 { Tag(text: "Upisano ✓", fg: .white, bg: C.green) } else { Tag(text: "Za upisati", fg: C.carbon, bg: C.coralSoft) }
+                if t.done > 0 { Tag(text: "Upisano ✓", fg: .white, bg: C.green) } else { Tag(text: "Za upisati", fg: C.ink, bg: C.coralSoft) }
             }
             ForEach(Array(session["items"].list.enumerated()), id: \.offset) { i, raw in
                 let it = Model.forAthlete(raw, me)
                 let mine = Model.own(it, me) != nil
                 HStack(spacing: 10) {
                     Circle().fill(dotColor(it.string("type"))).frame(width: 8, height: 8)
-                    Text(Model.title(it)).font(C.bold(14)).foregroundColor(mine ? C.own : C.carbon)
+                    Text(Model.title(it)).font(C.bold(14)).foregroundColor(mine ? C.own : C.ink)
                     Text(Model.plan(it)).font(C.text(12)).foregroundColor(mine ? C.own : C.muted).lineLimit(1)
                     Spacer(minLength: 0)
                 }

@@ -2,7 +2,7 @@ name: iOS
 
 on:
   push:
-    branches: [ios]
+    branches: [ios, ios-dev]
     paths: ['ios/**', '.github/workflows/ios.yml']
 
 concurrency:
@@ -60,21 +60,19 @@ jobs:
           xcrun simctl bootstatus "$DEV" -b
           xcrun simctl status_bar "$DEV" override --time 9:41 --batteryLevel 100 --cellularBars 4 || true
           xcrun simctl install "$DEV" build/Build/Products/Debug-iphonesimulator/COACH.app
-          mkdir -p shots
-          for s in login training gym board c-plan c-session c-edit c-log c-athletes c-athlete c-board c-more; do
+          mkdir -p shots shots/dark shots/store
+          ALL="login training gym track progress series comp board settings c-plan c-session c-edit c-log c-athletes c-athlete c-board c-more c-boards c-comps c-comp c-settings"
+          shot() { # name, folder, extra launch arguments
             xcrun simctl terminate "$DEV" com.coach.mojaaplikacija || true
-            xcrun simctl launch "$DEV" com.coach.mojaaplikacija -shot $s
-            sleep 7
-            xcrun simctl io "$DEV" screenshot "shots/$s.png"
-          done
+            xcrun simctl launch "$DEV" com.coach.mojaaplikacija -shot $1 $3
+            sleep 6
+            xcrun simctl io "$DEV" screenshot "shots/$2$1.png"
+          }
+          for s in $ALL; do shot $s "" ""; done
+          # the same screens in the dark theme ("-dark YES" lands in UserDefaults)
+          for s in $ALL; do shot $s "dark/" "-dark YES"; done
           # App Store set: same demo data, no DEMO tag or role switch
-          mkdir -p shots/store
-          for s in training session gym progress series board c-plan c-session c-log c-athlete; do
-            xcrun simctl terminate "$DEV" com.coach.mojaaplikacija || true
-            xcrun simctl launch "$DEV" com.coach.mojaaplikacija -shot $s -store
-            sleep 7
-            xcrun simctl io "$DEV" screenshot "shots/store/$s.png"
-          done
+          for s in training gym track series comp board progress c-plan c-session c-log c-athlete c-comps c-boards; do shot $s "store/" "-store"; done
 
       - name: Publish screenshots to branch ios-shots
         if: always()
@@ -89,7 +87,8 @@ jobs:
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ios-shots
 
       - name: TestFlight
-        if: env.ASC_KEY_ID != ''
+        # only the ios branch ships; ios-dev builds and takes screenshots
+        if: env.ASC_KEY_ID != '' && github.ref == 'refs/heads/ios'
         working-directory: ios
         run: |
           set -o pipefail

@@ -161,7 +161,7 @@ struct AttendanceDots: View {
         HStack(spacing: 4) {
             ForEach(Array(tally.days.suffix(max).enumerated()), id: \.offset) { _, st in
                 Circle()
-                    .fill(st == Attendance.yes ? C.green : C.white)
+                    .fill(st == Attendance.yes ? C.green : C.card)
                     .overlay(Circle().stroke(st == Attendance.yes ? C.green : C.red, lineWidth: 1.5))
                     .frame(width: 10, height: 10)
             }

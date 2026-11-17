@@ -21,93 +21,31 @@ enum Session {
     }
 }
 
-/// Account, reminder time, sync status, privacy, account deletion.
+/// Account (log out, delete), the dark theme, privacy. Nothing about the server: it syncs by itself.
 struct SettingsView: View {
     @ObservedObject var store = Store.shared
     @ObservedObject var nav = Nav.shared
     @State private var confirmDelete = false
     @State private var deleting = false
-    @State private var reminder = Calendar.current.date(bySettingHour: Prefs.reminderHour, minute: Prefs.reminderMinute, second: 0, of: Date()) ?? Date()
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                if store.demo {
-                    Card {
-                        Label12("Demo verzija")
-                        Text("Primjer bez prijave i bez baze. Podaci su izmišljeni i ostaju samo na ovom mobitelu.")
-                            .font(C.text(15)).foregroundColor(C.carbon).padding(.top, 6)
-                        PillButton(title: Prefs.isCoach ? "Prebaci na sportaša" : "Prebaci na trenera", color: C.carbon, fg: .white) { Demo.switchRole() }
-                            .padding(.top, 12)
-                        GhostButton(title: "Vrati primjer podatke") { Demo.reset() }.padding(.top, 8)
-                        GhostButton(title: "Izađi iz dema") { Demo.exit() }.padding(.top, 8)
-                    }
-                } else {
-                    Card {
-                        Label12(Prefs.isCoach ? "Prijavljen kao trener" : "Prijavljen kao sportaš")
-                        Text(Prefs.name.uppercased()).font(C.display(22)).foregroundColor(C.carbon).padding(.top, 6)
-                        Text(Prefs.email).font(C.text(14)).foregroundColor(C.muted).padding(.top, 2)
-                        if !Prefs.teamName.isEmpty {
-                            Text(teamText)
-                                .font(C.bold(14)).foregroundColor(C.carbon).padding(.top, 6)
-                        }
-                        GhostButton(title: "Odjavi se") { Session.logoutSafely() }.padding(.top, 12)
-                        Button { confirmDelete = true } label: {
-                            Text(deleting ? "Brišem…" : "Obriši račun").font(C.bold(13)).foregroundColor(C.red)
-                                .frame(maxWidth: .infinity).padding(.top, 12)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                if !Prefs.isCoach {
-                    Card {
-                        Label12("Jutarnji upitnik")
-                        Text(reminderText)
-                            .font(C.text(15)).foregroundColor(C.carbon).padding(.top, 6)
-                        DatePicker("Vrijeme obavijesti", selection: $reminder, displayedComponents: .hourAndMinute)
-                            .font(C.bold(15)).foregroundColor(C.carbon).tint(C.coral)
-                            .environment(\.locale, Locale(identifier: "hr_HR"))
-                            .padding(.top, 10)
-                            .onChange(of: reminder) { d in
-                                let c = Calendar.current.dateComponents([.hour, .minute], from: d)
-                                Prefs.reminderHour = c.hour ?? 8
-                                Prefs.reminderMinute = c.minute ?? 0
-                                Reminders.schedule()
-                                store.changed()
-                            }
-                        GhostButton(title: "Probna obavijest") {
-                            Reminders.askPermission()
-                            Reminders.test()
-                            Toast.shared.show("Stiže za 3 sekunde")
-                        }
-                        .padding(.top, 8)
-                    }
-                }
-
-                if !store.demo {
-                    Card {
-                        Label12("Zajednička baza")
-                        Text(status).font(C.text(15)).foregroundColor(C.carbon).padding(.top, 6)
-                        PillButton(title: "Sinkroniziraj sada", color: C.carbon, fg: .white) {
-                            Task {
-                                await store.sync()
-                                Toast.shared.show(store.lastError == nil ? "Sinkronizirano" : "Nema veze sa serverom")
-                            }
-                        }
-                        .padding(.top, 12)
-                    }
-                }
+                if store.demo { demoCard } else { accountCard }
+                themeCard
                 PrivacyLink().padding(.top, 4)
                 Text(versionText)
                     .font(C.text(12)).foregroundColor(C.muted).frame(maxWidth: .infinity)
+                if let w = waiting {
+                    Text(w).font(C.text(12)).foregroundColor(C.muted).frame(maxWidth: .infinity)
+                }
             }
             .padding(16)
         }
         .background(C.chalk)
         .navigationTitle("Postavke")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(C.carbon, for: .navigationBar)
+        .toolbarBackground(C.header, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .alert("Obrisati račun?", isPresented: $confirmDelete) {
@@ -129,9 +67,50 @@ struct SettingsView: View {
         }
     }
 
-    private var reminderText: String {
-        let m = String(format: "%02d", Prefs.reminderMinute)
-        return "Obavijest stiže u \(Prefs.reminderHour):\(m), a ako ga ne ispuniš, podsjeća te svaka 2 sata do 21 h."
+    private var demoCard: some View {
+        Card {
+            Label12("Demo verzija")
+            Text("Primjer bez prijave i bez baze. Podaci su izmišljeni i ostaju samo na ovom mobitelu.")
+                .font(C.text(15)).foregroundColor(C.ink).padding(.top, 6)
+            PillButton(title: Prefs.isCoach ? "Prebaci na sportaša" : "Prebaci na trenera", color: C.sel, fg: C.onSel) { Demo.switchRole() }
+                .padding(.top, 12)
+            GhostButton(title: "Vrati primjer podatke") { Demo.reset() }.padding(.top, 8)
+            GhostButton(title: "Izađi iz dema") { Demo.exit() }.padding(.top, 8)
+        }
+    }
+
+    private var accountCard: some View {
+        Card {
+            Label12(Prefs.isCoach ? "Prijavljen kao trener" : "Prijavljen kao sportaš")
+            Text(Prefs.name.uppercased()).font(C.display(22)).foregroundColor(C.ink).padding(.top, 6)
+            Text(Prefs.email).font(C.text(14)).foregroundColor(C.muted).padding(.top, 2)
+            if !Prefs.teamName.isEmpty {
+                Text(teamText)
+                    .font(C.bold(14)).foregroundColor(C.ink).padding(.top, 6)
+            }
+            GhostButton(title: "Odjavi se") { Session.logoutSafely() }.padding(.top, 12)
+            Button { confirmDelete = true } label: {
+                Text(deleting ? "Brišem…" : "Obriši račun").font(C.bold(13)).foregroundColor(C.red)
+                    .frame(maxWidth: .infinity).padding(.top, 12)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var themeCard: some View {
+        let dark = Binding<Bool>(get: { nav.dark }, set: { v in
+            Prefs.dark = v
+            nav.dark = v
+        })
+        return Card {
+            Toggle(isOn: dark) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Tamna tema").font(C.bold(16)).foregroundColor(C.ink)
+                    Text("Crna pozadina, ugodnije za oči navečer.").font(C.text(13)).foregroundColor(C.muted)
+                }
+            }
+            .tint(C.coral)
+        }
     }
 
     private var versionText: String {
@@ -147,10 +126,10 @@ struct SettingsView: View {
         return t
     }
 
-    private var status: String {
-        if let e = store.lastError { return "Nema veze: " + e }
-        if store.pending > 0 { return "Čeka slanje: \(store.pending)" }
-        return "Spojeno, sve poslano."
+    /// Only when something hasn't reached the server yet; it goes by itself once there is a connection.
+    private var waiting: String? {
+        if store.demo || store.pending == 0 { return nil }
+        return "Čeka slanje: \(store.pending). Šalje se samo čim ima interneta."
     }
 
     private func deleteAccount() {

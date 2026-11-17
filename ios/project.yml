@@ -36,7 +36,9 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         UIAppFonts: [display.ttf]
         UILaunchScreen: {}
-        UIUserInterfaceStyle: Light
+        # the header is dark in both themes: the clock and battery are always drawn white
+        UIViewControllerBasedStatusBarAppearance: false
+        UIStatusBarStyle: UIStatusBarStyleLightContent
         UIDesignRequiresCompatibility: true
         UIRequiresFullScreen: true
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]

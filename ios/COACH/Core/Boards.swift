@@ -22,7 +22,8 @@ enum Boards {
     }
 
     /// An athlete's boards: teammates' results come from the server (team_board), mine from this phone.
-    static func forTeam(_ store: Store, prog: Bool) -> [Board] {
+    /// Only the exercises the coach picked (BoardPick); every: all of them, for the coach's list of what to pick.
+    static func forTeam(_ store: Store, prog: Bool, every: Bool = false) -> [Board] {
         // the coach's phone has every athlete's results; so has the demo
         let me = Prefs.isCoach ? "" : Prefs.athleteId
         let local = store.demo || Prefs.isCoach
@@ -37,7 +38,8 @@ enum Boards {
             let rs = local || id == me ? store.where(Store.results, "athleteId", id) : (theirs[id] ?? [])
             series[id] = Progress.build(store, id, rs)
         }
-        return build(names, series, me, prog, Progress.todayDay())
+        let boards = build(names, series, me, prog, Progress.todayDay())
+        return every ? boards : boards.filter { BoardPick.shows(store, $0.key) }
     }
 
     static func build(_ names: [(String, String)], _ series: [String: [Progress.Series]], _ me: String, _ prog: Bool, _ today: Int) -> [Board] {
@@ -134,7 +136,9 @@ enum Boards {
     }
 
     static func value(_ b: Board, _ r: Row, _ prog: Bool) -> String {
-        prog ? pct(r.value) : b.series.fmt(r.value) + unit(b.series)
+        if prog { return pct(r.value) }
+        if b.series.kind == Progress.comp { return Comp.text(b.series.cunit, r.value) }
+        return b.series.fmt(r.value) + unit(b.series)
     }
 
     static func pct(_ v: Double) -> String {
@@ -143,11 +147,51 @@ enum Boards {
     }
 
     static func unit(_ s: Progress.Series) -> String {
-        s.kind == Progress.gym ? " kg" : s.kind == Progress.run ? " s" : "/km"
+        if s.kind == Progress.comp { return s.unit.isEmpty ? "" : " " + s.unit }
+        return s.kind == Progress.gym ? " kg" : s.kind == Progress.run ? " s" : "/km"
     }
 
     private static func gap(_ s: Progress.Series, _ d: Double) -> String {
         if s.kind == Progress.gps { return Fmt.clock(abs(d)) + "/km" }
+        if s.kind == Progress.comp { return Comp.text(s.cunit, abs(d)) }
         return Progress.sec(abs(d)) + " s"
+    }
+}
+
+/// Which exercises get a leaderboard: config/boards = {custom: true, on: [series key]}, written by the coach.
+/// Without the doc (or custom false) every exercise has one, as before. Once the coach picks, an exercise that
+/// isn't in the list has no board, so a new one stays off until it's switched on. Competition disciplines
+/// (comp:…) always have theirs: the coach made them for that.
+@MainActor
+enum BoardPick {
+    static let doc = "boards"
+
+    static func custom(_ s: Store) -> Bool { s.doc(Store.config, doc)?.bool("custom") ?? false }
+
+    static func on(_ s: Store) -> Set<String> {
+        let list: [JSON] = s.doc(Store.config, doc)?["on"].list ?? []
+        return Set(list.map { $0.asString })
+    }
+
+    static func shows(_ s: Store, _ key: String) -> Bool {
+        if key.hasPrefix("comp:") || !custom(s) { return true }
+        return on(s).contains(key)
+    }
+
+    static func save(_ s: Store, _ keys: Set<String>, custom: Bool) {
+        s.put(Store.config, ["id": .str(doc), "custom": .bool(custom), "on": .arr(keys.sorted().map { .str($0) })])
+    }
+
+    /// Every exercise, distance and run anyone in the team has logged: (key, name, group, how many athletes).
+    static func candidates(_ s: Store) -> [(key: String, name: String, group: String, n: Int)] {
+        var first: [String: Progress.Series] = [:]
+        var count: [String: Int] = [:]
+        for at in s.all(Store.athletes) {
+            for ser in Progress.build(s, at.string("id")) where ser.kind != Progress.comp {
+                if first[ser.key] == nil { first[ser.key] = ser }
+                count[ser.key, default: 0] += 1
+            }
+        }
+        return first.values.sorted(by: Progress.order).map { (key: $0.key, name: $0.name, group: $0.group, n: count[$0.key] ?? 0) }
     }
 }
