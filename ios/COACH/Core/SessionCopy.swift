@@ -8,6 +8,8 @@ enum SessionCopy {
     static let steps: [Double] = [0.5, 1, 2.5]
     static let defaultStep = 2.5
     static let defaultPercent = "5"
+    /// One-tap percentages next to the box.
+    static let quick: [Double] = [2.5, 5, 10]
 
     /// "5", "7,5", "-10" → the percentage, kept within -50…+100. Empty or not a number = 0.
     static func percent(_ typed: String) -> Double {

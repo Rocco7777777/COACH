@@ -84,14 +84,18 @@ struct CopySessionForm: View {
         let p = SessionCopy.percent(percent)
         let names = athleteNames
         return Card {
-            HStack(spacing: 8) {
-                Text("Povećaj kilažu").font(C.bold(15)).foregroundColor(C.ink)
-                Spacer(minLength: 8)
+            Text("Povećaj kilažu").font(C.bold(15)).foregroundColor(C.ink)
+            HStack(spacing: 6) {
+                ForEach(SessionCopy.quick, id: \.self) { q in
+                    Chip(title: "+" + Fmt.n(q), on: p == q) { percent = Fmt.n(q) }
+                }
+                Spacer(minLength: 6)
                 TextField("0", text: $percent)
                     .keyboardType(.numbersAndPunctuation).submitLabel(.done).autocorrectionDisabled()
-                    .input(center: true).frame(width: 84)
+                    .input(center: true).frame(width: 76)
                 Text("%").font(C.bold(16)).foregroundColor(C.ink)
             }
+            .padding(.top, 8)
             Label12("Zaokruži na").padding(.top, 12)
             HStack(spacing: 6) {
                 ForEach(SessionCopy.steps, id: \.self) { st in
@@ -221,7 +225,7 @@ struct CopySessionSheet: View {
     }
 }
 
-/// "Kopiraj stari trening" on a new, still empty session: pick a past one from the list, then the same form.
+/// "Kopiraj stari trening" on a new, still empty session: pick an earlier one from the list, then the same form.
 struct PickSessionSheet: View {
     /// The day being planned.
     let date: String
@@ -240,12 +244,11 @@ struct PickSessionSheet: View {
         }
     }
 
-    /// Past sessions of the group the coach is looking at (as on TRENINZI), newest first.
+    /// Sessions up to the day being planned, of the group the coach is looking at (as on TRENINZI), newest first.
     private var sessions: [JSON] {
         let gid = Groups.selected(store)
-        let today = Fmt.today()
         return store.all(Store.sessions)
-            .filter { $0.string("date") <= today && !$0["items"].list.isEmpty && Groups.forGroup(store, $0, gid) }
+            .filter { $0.string("date") <= date && !$0["items"].list.isEmpty && Groups.forGroup(store, $0, gid) }
             .sorted { a, b in
                 let da = a.string("date"), db = b.string("date")
                 return da != db ? da > db : a.string("title") < b.string("title")
