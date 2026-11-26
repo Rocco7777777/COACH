@@ -50,6 +50,18 @@ enum Prefs {
         set { d.set(newValue, forKey: "dark") }
     }
 
+    /// Kopiraj trening: the exercises the coach ticked for a changed weight (folded names) and the rounding step in kg.
+    /// They belong to the phone, like the theme.
+    static var copyTicked: [String] {
+        get { d.stringArray(forKey: "copyTicked") ?? [] }
+        set { d.set(newValue, forKey: "copyTicked") }
+    }
+
+    static var copyStep: Double {
+        get { d.double(forKey: "copyStep") }
+        set { d.set(newValue, forKey: "copyStep") }
+    }
+
     static var reminderHour: Int {
         get { d.object(forKey: "remH") == nil ? 8 : d.integer(forKey: "remH") }
         set { d.set(newValue, forKey: "remH") }

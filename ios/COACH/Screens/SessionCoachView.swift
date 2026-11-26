@@ -7,7 +7,6 @@ struct SessionCoachView: View {
     @ObservedObject var store = Store.shared
     @Environment(\.dismiss) private var dismiss
     @State private var copying = false
-    @State private var copyDate = Date()
     @State private var askDelete = false
 
     private var session: JSON? { store.doc(Store.sessions, sessionId) }
@@ -44,7 +43,22 @@ struct SessionCoachView: View {
         } message: {
             Text("Brišu se i upisani rezultati sportaša za ovaj trening.")
         }
-        .sheet(isPresented: $copying) { copySheet }
+        .sheet(isPresented: $copying) {
+            if let s = session {
+                // a week later by default: the same day next week
+                CopySessionSheet(source: s, date: Fmt.addDays(Fmt.date(s.string("date")), 7)) { n in
+                    copying = false
+                    Toast.shared.show("Kopirano na " + Fmt.nice(n.string("date")))
+                }
+            }
+        }
+        .task {
+            // screenshot mode: the copy form open on this session
+            if Shot.name == "c-copy" {
+                try? await Task.sleep(nanoseconds: 900_000_000)
+                copying = true
+            }
+        }
     }
 
     private func content(_ s: JSON) -> some View {
@@ -55,10 +69,7 @@ struct SessionCoachView: View {
                 PlanCard(session: s, team: team)
                 PillButton(title: "✎  Zapisnik") { path.append(CoachRoute.logbook(sessionId)) }.padding(.top, 4)
                 HStack(spacing: 8) {
-                    GhostButton(title: "Kopiraj") {
-                        copyDate = Fmt.addDays(Fmt.date(s.string("date")), 7)
-                        copying = true
-                    }
+                    GhostButton(title: "Kopiraj") { copying = true }
                     GhostButton(title: "Obriši", color: C.red) { askDelete = true }
                 }
                 if s.string("date") <= Fmt.today() && !team.isEmpty {
@@ -71,31 +82,6 @@ struct SessionCoachView: View {
             }
             .padding(16)
         }
-    }
-
-    private var copySheet: some View {
-        VStack(spacing: 12) {
-            Text("KOPIRAJ NA DAN").font(C.display(17)).foregroundColor(C.ink)
-            DatePicker("Datum", selection: $copyDate, displayedComponents: .date)
-                .datePickerStyle(.graphical)
-                .environment(\.locale, Locale(identifier: "hr_HR"))
-                .tint(C.coral)
-            PillButton(title: "Kopiraj") {
-                copy()
-                copying = false
-            }
-        }
-        .padding(16)
-        .presentationDetents([.large])
-    }
-
-    private func copy() {
-        guard var n = session else { return }
-        n["id"] = .str(Fmt.id())
-        n["date"] = .str(Fmt.iso(copyDate))
-        Groups.tidy(store, &n) // deleted groups dropped, all groups = whole team
-        store.put(Store.sessions, n)
-        Toast.shared.show("Kopirano na " + Fmt.nice(n.string("date")))
     }
 
     private func delete() {

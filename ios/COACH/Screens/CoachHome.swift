@@ -67,6 +67,12 @@ struct CoachHome: View {
             let gym = store.all(Store.sessions).filter { $0.string("date") >= Fmt.today() && $0["items"].list.contains { $0.string("type") == "gym" } }
                 .sorted { $0.string("date") < $1.string("date") }.first
             if let g = gym { path.append(CoachRoute.editSession(g.string("id"))) }
+        case "c-copy":
+            // the last gym session where athletes have their own kg, so the form shows both kinds of rows
+            let past = store.all(Store.sessions).filter { $0.string("date") < Fmt.today() }.sorted { $0.string("date") > $1.string("date") }
+            let own = past.first { $0["items"].list.contains { $0["per"].isObject && SessionCopy.hasKg($0) } }
+            if let g = own ?? past.first(where: { !SessionCopy.scalable($0).isEmpty }) { path.append(CoachRoute.session(g.string("id"))) }
+        case "c-pick": path.append(CoachRoute.newSession(Fmt.iso(Fmt.addDays(Date(), 1))))
         case "c-athlete":
             if let a = Groups.byName(store.all(Store.athletes)).first { tab = 1; path.append(CoachRoute.athlete(a.string("id"))) }
         case "c-boards": tab = 3; path.append(CoachRoute.boards)

@@ -23,6 +23,14 @@ struct SessionEditView: View {
         ScrollView {
             if s.isObject {
                 VStack(alignment: .leading, spacing: 12) {
+                    if sessionId == nil && s["items"].list.isEmpty {
+                        CopyOldButton(date: s.string("date")) { n in
+                            // the copy is saved; the editor carries on with it, so the coach can still change it
+                            s = n
+                            dirty = false
+                            Toast.shared.show("Kopirano na " + Fmt.nice(n.string("date")))
+                        }
+                    }
                     groupsCard
                     basics
                     ForEach(Array(s["items"].list.enumerated()), id: \.element.idKey) { i, _ in
