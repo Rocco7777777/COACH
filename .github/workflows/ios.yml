@@ -61,7 +61,7 @@ jobs:
           xcrun simctl status_bar "$DEV" override --time 9:41 --batteryLevel 100 --cellularBars 4 || true
           xcrun simctl install "$DEV" build/Build/Products/Debug-iphonesimulator/COACH.app
           mkdir -p shots shots/dark shots/store
-          ALL="login training gym track progress series comp board podium settings c-plan c-session c-copy c-pick c-edit c-log c-athletes c-athlete c-board c-more c-boards c-comps c-comp c-settings"
+          ALL="login training gym track progress series comp board podium settings c-plan c-session c-copy c-pick c-new c-edit c-log c-athletes c-athlete c-board c-more c-boards c-comps c-comp c-settings"
           shot() { # name, folder, extra launch arguments
             xcrun simctl terminate "$DEV" com.coach.mojaaplikacija || true
             xcrun simctl launch "$DEV" com.coach.mojaaplikacija -shot $1 $3

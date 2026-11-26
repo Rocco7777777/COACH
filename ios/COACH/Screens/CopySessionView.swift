@@ -12,6 +12,7 @@ struct CopySessionForm: View {
     @State private var step: Double
     @State private var ticked: Set<String>
     @State private var needPercent = false
+    @State private var sent = false
 
     init(source: JSON, date: Date, done: @escaping (JSON) -> Void) {
         self.source = source
@@ -48,6 +49,7 @@ struct CopySessionForm: View {
         .background(C.chalk)
         .keyboardDone()
         .onChange(of: percent) { _ in needPercent = false }
+        .onChange(of: date) { _ in calendar = false } // a day was picked: the calendar folds away
     }
 
     // MARK: parts
@@ -139,6 +141,9 @@ struct CopySessionForm: View {
             needPercent = true
             return
         }
+        // a quick second tap must not make a second copy
+        if sent { return }
+        sent = true
         let n = SessionCopy.make(store, source, date: Fmt.iso(date), ticked: ticked, percent: p ?? 0, step: step)
         store.put(Store.sessions, n)
         SessionCopy.remember(source, ticked, step)
