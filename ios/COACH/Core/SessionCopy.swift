@@ -11,13 +11,13 @@ enum SessionCopy {
     /// One-tap percentages next to the box.
     static let quick: [Double] = [2.5, 5, 10]
 
-    /// "5", "7,5", "-10" → the percentage, kept within -50…+100. Empty or not a number = 0.
-    static func percent(_ typed: String) -> Double {
+    /// "5", "7,5", "-10", "+10 %" → the percentage, kept within -50…+100. nil when the box is empty or not a number.
+    static func percent(_ typed: String) -> Double? {
         var t = typed.replacingOccurrences(of: ",", with: ".").replacingOccurrences(of: "%", with: "")
             .replacingOccurrences(of: "−", with: "-").replacingOccurrences(of: "–", with: "-")
             .trimmingCharacters(in: .whitespaces)
         if t.hasPrefix("+") { t.removeFirst() }
-        guard let p = Double(t), p.isFinite else { return 0 }
+        guard let p = Double(t), p.isFinite else { return nil }
         return min(100, max(-50, p))
     }
 

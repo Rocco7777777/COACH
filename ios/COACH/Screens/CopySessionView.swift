@@ -11,6 +11,7 @@ struct CopySessionForm: View {
     @State private var percent: String
     @State private var step: Double
     @State private var ticked: Set<String>
+    @State private var needPercent = false
 
     init(source: JSON, date: Date, done: @escaping (JSON) -> Void) {
         self.source = source
@@ -36,6 +37,9 @@ struct CopySessionForm: View {
                 } else {
                     kgCard(items)
                 }
+                if needPercent {
+                    Text("Upiši postotak, npr. 5.").font(C.bold(13)).foregroundColor(C.red).padding(.horizontal, 2)
+                }
                 PillButton(title: "Kopiraj") { copy() }.padding(.top, 6)
             }
             .padding(16)
@@ -43,6 +47,7 @@ struct CopySessionForm: View {
         .scrollDismissesKeyboard(.interactively)
         .background(C.chalk)
         .keyboardDone()
+        .onChange(of: percent) { _ in needPercent = false }
     }
 
     // MARK: parts
@@ -81,7 +86,7 @@ struct CopySessionForm: View {
     }
 
     private func kgCard(_ items: [JSON]) -> some View {
-        let p = SessionCopy.percent(percent)
+        let p = SessionCopy.percent(percent) ?? 0
         let names = athleteNames
         return Card {
             Text("Povećaj kilažu").font(C.bold(15)).foregroundColor(C.ink)
@@ -128,7 +133,13 @@ struct CopySessionForm: View {
 
     private func copy() {
         hideKeyboard()
-        let n = SessionCopy.make(store, source, date: Fmt.iso(date), ticked: ticked, percent: SessionCopy.percent(percent), step: step)
+        let p = SessionCopy.percent(percent)
+        // exercises ticked and no percentage: the coach surely didn't mean a plain copy
+        if p == nil && !ticked.isEmpty {
+            needPercent = true
+            return
+        }
+        let n = SessionCopy.make(store, source, date: Fmt.iso(date), ticked: ticked, percent: p ?? 0, step: step)
         store.put(Store.sessions, n)
         SessionCopy.remember(source, ticked, step)
         done(store.doc(Store.sessions, n.string("id")) ?? n)
@@ -158,7 +169,7 @@ struct CopyTickRow: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.string("name").uppercased()).font(C.display(14)).foregroundColor(C.ink)
                         .multilineTextAlignment(.leading)
-                    if !planHead.isEmpty || Fmt.num(item.string("kg")) > 0 { line(planHead, item.string("kg"), own: false) }
+                    line(planHead, item.string("kg"), own: false)
                     ForEach(owns) { o in line(o.name, o.kg, own: true) }
                 }
                 Spacer(minLength: 0)
@@ -196,16 +207,22 @@ struct CopyTickRow: View {
         return out.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
     }
 
-    /// "4 × 5  ·  100 kg"; ticked: "4 × 5  ·  100 → 105 kg" with the new weight in bold.
-    private func line(_ head: String, _ kg: String, own: Bool) -> some View {
+    /// "4 × 5  ·  100 kg  ·  @8"; ticked: "4 × 5  ·  100 → 105 kg  ·  @8" with the new weight in bold.
+    /// The plan's RPE is there because it stays as it is. An athlete's line: "Ivan K.  ·  110 → 115 kg".
+    @ViewBuilder private func line(_ head: String, _ kg: String, own: Bool) -> some View {
         let old = Fmt.num(kg) > 0 ? Model.number(kg) : ""
         let new: String? = on && percent != 0 ? SessionCopy.scaledText(kg, percent, step) : nil
-        let sep = head.isEmpty || old.isEmpty ? "" : "  ·  "
-        let tail = old.isEmpty ? "" : (new == nil ? old + " kg" : old + " → ")
+        let before = old.isEmpty ? head : head + (head.isEmpty ? "" : "  ·  ") + old + (new == nil ? " kg" : " → ")
+        let rpe = own ? "" : item.string("rpe").trimmingCharacters(in: .whitespaces)
+        let after = rpe.isEmpty ? "" : (before.isEmpty ? "" : "  ·  ") + "@" + rpe
         let color: Color = own ? C.own : C.muted
-        return HStack(spacing: 0) {
-            Text(head + sep + tail).font(own ? C.bold(13) : C.text(13)).foregroundColor(color)
-            if let n = new { Text(Model.number(n) + " kg").font(C.bold(13)).foregroundColor(C.ink) }
+        let font: Font = own ? C.bold(13) : C.text(13)
+        if !before.isEmpty || !after.isEmpty {
+            HStack(spacing: 0) {
+                Text(before).font(font).foregroundColor(color)
+                if let n = new { Text(Model.number(n) + " kg").font(C.bold(13)).foregroundColor(C.ink) }
+                Text(after).font(font).foregroundColor(color)
+            }
         }
     }
 }
